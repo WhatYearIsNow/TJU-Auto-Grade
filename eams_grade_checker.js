@@ -17,6 +17,7 @@ const CONFIG = {
   profileDir: path.join(__dirname, '.eams_profile'),
   lastGradesFile: path.join(__dirname, 'grades_latest.json'),
   logFile: path.join(__dirname, 'eams_monitor.log'),
+  pidFile: path.join(__dirname, '.eams_pid'),
 };
 const CHECK_INTERVAL = 15 * 60 * 1000; // 15 分钟
 
@@ -378,6 +379,7 @@ function buildUpdateEmail(changes, allGrades) {
 // ── 主流程 ────────────────────────────────────────────
 async function main() {
   log('INIT', '=== 查成绩助手启动 ===');
+  fs.writeFileSync(CONFIG.pidFile, String(process.pid), 'utf-8');
   log('INIT', '启动浏览器 (Edge)...');
   const context = await chromium.launchPersistentContext(CONFIG.profileDir, {
     headless: false,
@@ -509,6 +511,7 @@ async function main() {
   async function shutdown() {
     log('EXIT', '正在关闭...');
     clearTimeout(timer);
+    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
     try { await context.close(); } catch {}
     process.exit(0);
   }
@@ -519,6 +522,7 @@ async function main() {
 }
 
 main().catch(err => {
+  try { fs.unlinkSync(CONFIG.pidFile); } catch {}
   console.error('[FATAL]', err);
   process.exit(1);
 });

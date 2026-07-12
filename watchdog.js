@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const tls = require('tls');
-const { execSync } = require('child_process');
 
 function loadEnv(filepath) {
   if (!fs.existsSync(filepath)) return;
@@ -18,25 +17,24 @@ function loadEnv(filepath) {
 }
 loadEnv(path.join(__dirname, 'eams.env'));
 
+const PID_FILE = path.join(__dirname, '.eams_pid');
+
 function now() {
   return new Date().toLocaleString('zh-CN', { hour12: false });
 }
 
 function isMainRunning() {
   try {
-    const result = execSync('tasklist /FI "IMAGENAME eq node.exe" /FO CSV /NH', { encoding: 'utf-8', timeout: 5000 });
-    // 检查是否有 node 进程在运行 eams_grade_checker.js
+    const pid = fs.readFileSync(PID_FILE, 'utf-8').trim();
+    // 检查该 PID 的进程是否还在运行
     try {
-      const cmdResult = execSync(
-        'wmic process where "name=\'node.exe\'" get CommandLine /FORMAT:CSV 2>nul',
-        { encoding: 'utf-8', timeout: 5000 }
-      );
-      return cmdResult.includes('eams_grade_checker.js');
+      process.kill(parseInt(pid), 0); // 信号 0 只检查不杀进程
+      return true;
     } catch {
-      return result.includes('node.exe');
+      return false;
     }
   } catch {
-    return false;
+    return false; // PID 文件不存在
   }
 }
 
@@ -91,12 +89,12 @@ async function check() {
 
   if (running) {
     if (alertSent) {
+      console.log(`[${ts}] 主进程已恢复`);
       try {
         await sendMail('监控已恢复', `<p>【${ts}】eams_grade_checker 进程已恢复运行。</p>`);
       } catch {}
       alertSent = false;
     }
-    // 静默，不输出日志
   } else {
     if (!alertSent) {
       console.log(`[${ts}] 主进程未运行，发送报警...`);
@@ -111,6 +109,6 @@ async function check() {
   }
 }
 
-console.log(`[${now()}] 看门狗已启动，每 5 分钟检查一次`);
+console.log(`[${now()}] 看门狗已启动，每 5 分钟检查一次 (PID 文件: ${PID_FILE})`);
 check();
 setInterval(check, CHECK_INTERVAL);
