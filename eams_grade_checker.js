@@ -60,6 +60,86 @@ async function isOnCasPage(page) { return page.url().includes('sso.tju.edu.cn');
 async function isOnEamsPage(page) { return page.url().includes('classes.tju.edu.cn') && !page.url().includes('sso.tju.edu.cn'); }
 
 // ── 登录 ──────────────────────────────────────────────
+async function autoLogin(page) {
+  const username = process.env.EAMS_USERNAME;
+  const password = process.env.EAMS_PASSWORD;
+  if (!username || !password) return false;
+
+  const { execFile } = require('child_process');
+  const captchaPath = path.join(__dirname, '.captcha_tmp.png');
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    log('LOGIN', `AI 自动登录 第 ${attempt}/3 次...`);
+
+    // 等 CAPTCHA 图片加载
+    try { await page.waitForSelector('#codeImage', { timeout: 10000 }); } catch { continue; }
+    await page.waitForTimeout(500);
+
+    // 截图 CAPTCHA
+    const captchaEl = await page.$('#codeImage');
+    if (!captchaEl) continue;
+    await captchaEl.screenshot({ path: captchaPath });
+
+    // AI 识别
+    let code = null;
+    try {
+      code = await new Promise((resolve, reject) => {
+        execFile('node', [path.join(__dirname, 'vision.js'), captchaPath,
+          '只返回验证码字符，不要任何解释'], { timeout: 15000 },
+          (err, stdout) => {
+            if (err) return reject(err);
+            const m = (stdout || '').trim().match(/[a-zA-Z0-9]{4,6}/);
+            resolve(m ? m[0] : null);
+          });
+      });
+    } catch (err) {
+      log('LOGIN', `AI 识别失败: ${err.message}`);
+      try { fs.unlinkSync(captchaPath); } catch {}
+      continue;
+    }
+    try { fs.unlinkSync(captchaPath); } catch {}
+
+    if (!code) { log('LOGIN', '识别结果为空，重试'); continue; }
+    log('LOGIN', `验证码: ${code}`);
+
+    // 填写表单
+    await page.fill('#un', username);
+    await page.fill('#pd', password);
+    await page.fill('#code', code);
+    await page.waitForTimeout(300);
+
+    // ★ 用 Playwright 原生 click（真实鼠标事件），触发 JS 加密
+    try {
+      const submitBtn = page.locator('button[type="submit"], input[type="submit"]').first();
+      await submitBtn.click({ timeout: 5000 });
+    } catch {
+      // 兜底
+      await page.evaluate(() => {
+        const form = document.getElementById('loginForm');
+        if (form && form.requestSubmit) form.requestSubmit();
+      });
+    }
+
+    // 等结果
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(1000);
+      if (await isOnEamsPage(page)) { log('LOGIN', 'AI 登录成功!'); return true; }
+    }
+
+    // 检查错误
+    const errText = await page.evaluate(() => {
+      const el = document.querySelector('#loginErrorMessage, .error, .msg, .alert-error, [class*="error"]');
+      return el ? el.textContent.trim() : null;
+    });
+    log('LOGIN', `失败: ${errText || '验证码错误或加密失败'}`);
+
+    // 刷新验证码
+    try { await page.click('#a_changeCode'); await page.waitForTimeout(800); } catch {}
+  }
+
+  return false;
+}
+
 async function manualLogin(page) {
   console.log('\n========================================');
   console.log('  请在浏览器窗口中手动完成登录');
@@ -261,7 +341,13 @@ async function main() {
   await page.waitForTimeout(2000);
 
   if (await isOnCasPage(page)) {
-    const ok = await manualLogin(page);
+    // 先试 AI 自动登录
+    log('INIT', '尝试 AI 自动登录...');
+    let ok = await autoLogin(page);
+    if (!ok) {
+      log('INIT', 'AI 登录失败，切换到手动登录');
+      ok = await manualLogin(page);
+    }
     if (!ok) { log('FAIL', '登录失败'); await context.close(); process.exit(1); }
   } else if (await isOnEamsPage(page)) {
     log('INIT', '会话有效，跳过登录');
