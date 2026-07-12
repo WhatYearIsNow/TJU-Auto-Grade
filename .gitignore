@@ -1,6 +1,10 @@
-node_modules/
-.eams_profile/
+# 敏感文件
 eams.env
-eams_monitor.log
-detail_probe.png
+.eams_profile/
 grades_latest.json
+eams_monitor.log
+*.png
+.captcha_tmp.png
+
+# Node
+node_modules/
