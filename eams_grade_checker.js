@@ -58,8 +58,7 @@ function ask(question) {
 }
 
 function now() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return new Date().toLocaleString('zh-CN', { hour12: false });
 }
 
 // ── EAMS 页面判断 ─────────────────────────────────────
@@ -412,6 +411,7 @@ async function main() {
   let lastGrades = await extractGrades(page);
   if (lastGrades.length === 0) {
     log('FAIL', '未抓到成绩，退出');
+    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
     await context.close();
     process.exit(1);
   }
@@ -517,6 +517,16 @@ async function main() {
   }
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+  process.on('unhandledRejection', (reason) => {
+    log('FATAL', `未处理的 Promise 拒绝: ${reason}`);
+    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
+    process.exit(1);
+  });
+  process.on('uncaughtException', (err) => {
+    log('FATAL', `未捕获的异常: ${err.message}`);
+    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
+    process.exit(1);
+  });
   // readline 监听终端关闭
   process.stdin.on('close', shutdown);
 }
