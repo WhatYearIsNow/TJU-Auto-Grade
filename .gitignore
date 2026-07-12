@@ -3,6 +3,7 @@ eams.env
 .eams_profile/
 grades_*.json
 grades_latest.json
+eams_monitor.log
 *.png
 .captcha_tmp.png
 
