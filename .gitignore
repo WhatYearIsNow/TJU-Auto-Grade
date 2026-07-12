@@ -1,0 +1,10 @@
+# 敏感文件
+eams.env
+.eams_profile/
+grades_*.json
+grades_latest.json
+*.png
+.captcha_tmp.png
+
+# Node
+node_modules/

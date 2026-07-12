@@ -1,0 +1,12 @@
+{
+  "name": "tju-auto-grade",
+  "version": "1.0.0",
+  "description": "天津大学自动查分系统 — 常驻监控成绩变化，邮件通知",
+  "main": "eams_grade_checker.js",
+  "scripts": {
+    "start": "node eams_grade_checker.js"
+  },
+  "dependencies": {
+    "playwright": "^1.59.1"
+  }
+}
