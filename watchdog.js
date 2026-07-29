@@ -1,6 +1,10 @@
+#!/usr/bin/env node
+'use strict';
+
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const tls = require('tls');
+const { sendMail } = require('./mailer');
 
 function loadEnv(filepath) {
   if (!fs.existsSync(filepath)) return;
@@ -8,107 +12,204 @@ function loadEnv(filepath) {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
-    const idx = trimmed.indexOf('=');
-    if (idx < 0) continue;
-    const key = trimmed.slice(0, idx).trim();
-    const val = trimmed.slice(idx + 1).trim();
-    if (!process.env[key]) process.env[key] = val;
+    const index = trimmed.indexOf('=');
+    if (index < 0) continue;
+    const key = trimmed.slice(0, index).trim();
+    const value = trimmed.slice(index + 1).trim();
+    if (!process.env[key]) process.env[key] = value;
   }
 }
+
 loadEnv(path.join(__dirname, 'eams.env'));
 
 const PID_FILE = path.join(__dirname, '.eams_pid');
+const HEARTBEAT_FILE = path.join(__dirname, '.eams_heartbeat');
+const MAIN_SCRIPT = path.join(__dirname, 'eams_grade_checker.js');
+const CHECK_INTERVAL = 5 * 60 * 1000;
+const HEARTBEAT_MAX_AGE = 3 * 60 * 1000;
+const RESTART_GRACE_PERIOD = 2 * 60 * 1000;
+const AUTO_RESTART = !/^(false|0|no)$/i.test(process.env.WATCHDOG_AUTO_RESTART || 'true');
 
 function now() {
   return new Date().toLocaleString('zh-CN', { hour12: false });
 }
 
-function isMainRunning() {
+function readPid() {
   try {
-    const pid = fs.readFileSync(PID_FILE, 'utf-8').trim();
-    // 检查该 PID 的进程是否还在运行
-    try {
-      process.kill(parseInt(pid), 0); // 信号 0 只检查不杀进程
-      return true;
-    } catch {
-      return false;
-    }
+    const content = fs.readFileSync(PID_FILE, 'utf-8').trim();
+    if (/^\d+$/.test(content)) return Number.parseInt(content, 10);
+    const record = JSON.parse(content);
+    return Number.isInteger(record.pid) ? record.pid : null;
   } catch {
-    return false; // PID 文件不存在
+    return null;
   }
 }
 
-function sendMail(subject, body) {
-  return new Promise((resolve, reject) => {
-    const smtpUser = process.env.QQ_EMAIL;
-    const smtpPass = process.env.QQ_SMTP_CODE;
-    const toEmail = process.env.NOTIFY_EMAIL || smtpUser;
-    if (!smtpUser || !smtpPass) { console.log('[FAIL] 未配置邮箱'); return resolve(false); }
-
-    const raw = [
-      `From: "tju-auto-grade" <${smtpUser}>`,
-      `To: <${toEmail}>`,
-      `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=UTF-8',
-      '',
-      body,
-    ].join('\r\n');
-
-    const socket = tls.connect({ host: 'smtp.qq.com', port: 465 }, () => {
-      let step = 0;
-      function send(cmd) { socket.write(cmd + '\r\n'); }
-      socket.on('data', (d) => {
-        const code = parseInt(d.toString().slice(0, 3));
-        if (code >= 500) return reject(new Error(`SMTP ${code}`));
-        switch (step) {
-          case 0: step = 1; send('EHLO eams-watchdog'); break;
-          case 1: step = 2; send('AUTH LOGIN'); break;
-          case 2: step = 3; send(Buffer.from(smtpUser).toString('base64')); break;
-          case 3: step = 4; send(Buffer.from(smtpPass).toString('base64')); break;
-          case 4: step = 5; send(`MAIL FROM:<${smtpUser}>`); break;
-          case 5: step = 6; send(`RCPT TO:<${toEmail}>`); break;
-          case 6: step = 7; send('DATA'); break;
-          case 7: step = 8; send(raw + '\r\n.'); break;
-          case 8: send('QUIT'); console.log(`[${now()}] 报警已发送`); resolve(true); break;
-        }
-      });
-    });
-    socket.on('error', reject);
-    socket.setTimeout(30000, () => reject(new Error('SMTP 超时')));
-  });
+function isPidRunning(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-// ── 主循环：每 5 分钟检查一次 ──
-const CHECK_INTERVAL = 5 * 60 * 1000;
-let alertSent = false;
+function isHeartbeatFresh() {
+  try {
+    const age = Date.now() - fs.statSync(HEARTBEAT_FILE).mtimeMs;
+    return age >= 0 && age <= HEARTBEAT_MAX_AGE;
+  } catch {
+    return false;
+  }
+}
 
-async function check() {
-  const running = isMainRunning();
-  const ts = now();
+function monitorState() {
+  const pid = readPid();
+  if (!isPidRunning(pid)) return { healthy: false, reason: '主进程不存在', pid };
+  if (!isHeartbeatFresh()) return { healthy: false, reason: '主进程心跳已超时', pid };
+  return { healthy: true, reason: '', pid };
+}
 
-  if (running) {
-    if (alertSent) {
-      console.log(`[${ts}] 主进程已恢复`);
-      try {
-        await sendMail('监控已恢复', `<p>【${ts}】eams_grade_checker 进程已恢复运行。</p>`);
-      } catch {}
-      alertSent = false;
+function isManagedMainProcess(pid) {
+  if (!isPidRunning(pid)) return false;
+
+  try {
+    if (process.platform === 'win32') {
+      const command = [
+        `$process = Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}"`,
+        'if ($process) { $process.CommandLine }',
+      ].join('; ');
+      const result = spawnSync(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', command],
+        { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
+      );
+      return result.status === 0
+        && result.stdout.toLowerCase().includes('eams_grade_checker.js');
+    }
+
+    if (process.platform === 'linux') {
+      const commandLine = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf-8');
+      return commandLine.includes('eams_grade_checker.js');
+    }
+  } catch {}
+
+  return false;
+}
+
+async function stopManagedMain(pid) {
+  if (!isManagedMainProcess(pid)) {
+    throw new Error(`拒绝终止未确认身份的进程 PID ${pid}`);
+  }
+
+  if (process.platform === 'win32') {
+    const result = spawnSync(
+      'taskkill.exe',
+      ['/PID', String(pid), '/T', '/F'],
+      { encoding: 'utf-8', timeout: 10_000, windowsHide: true },
+    );
+    if (result.status !== 0 && isPidRunning(pid)) {
+      throw new Error(`终止主进程失败: ${(result.stderr || result.stdout).trim()}`);
     }
   } else {
-    if (!alertSent) {
-      console.log(`[${ts}] 主进程未运行，发送报警...`);
-      try {
-        await sendMail('监控进程异常中止',
-          `<p>【${ts}】eams_grade_checker 进程未在运行，请检查。</p>`);
-        alertSent = true;
-      } catch (err) {
-        console.error(`[${ts}] 报警发送失败: ${err.message}`);
-      }
-    }
+    process.kill(pid, 'SIGTERM');
+  }
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    if (!isPidRunning(pid)) return;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error(`主进程 PID ${pid} 未在 10 秒内退出`);
+}
+
+function launchMain() {
+  const child = spawn(process.execPath, [MAIN_SCRIPT], {
+    cwd: __dirname,
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  child.unref();
+  return child.pid;
+}
+
+let alertActive = false;
+let restartPendingUntil = 0;
+
+async function notify(subject, body) {
+  try {
+    const delivered = await sendMail(subject, body);
+    if (delivered) console.log(`[${now()}] 邮件已发送: ${subject}`);
+    else console.log(`[${now()}] 未配置邮箱，跳过邮件: ${subject}`);
+  } catch (err) {
+    console.error(`[${now()}] 邮件发送失败: ${err.message}`);
   }
 }
 
-console.log(`[${now()}] 看门狗已启动，每 5 分钟检查一次 (PID 文件: ${PID_FILE})`);
-check();
-setInterval(check, CHECK_INTERVAL);
+async function check() {
+  const state = monitorState();
+  const timestamp = now();
+
+  if (state.healthy) {
+    restartPendingUntil = 0;
+    if (alertActive) {
+      console.log(`[${timestamp}] 主进程已恢复 (PID ${state.pid})`);
+      await notify(
+        '监控已恢复',
+        `<p>【${timestamp}】eams_grade_checker 已恢复运行。</p>`,
+      );
+      alertActive = false;
+    }
+    return;
+  }
+
+  if (Date.now() < restartPendingUntil) {
+    console.log(`[${timestamp}] 等待刚启动的主进程建立心跳`);
+    return;
+  }
+
+  console.log(`[${timestamp}] ${state.reason}`);
+  let restartMessage = '自动重启已禁用';
+
+  if (AUTO_RESTART) {
+    try {
+      if (state.pid && isPidRunning(state.pid)) {
+        await stopManagedMain(state.pid);
+      }
+      const newPid = launchMain();
+      restartPendingUntil = Date.now() + RESTART_GRACE_PERIOD;
+      restartMessage = `已尝试自动重启，新进程 PID ${newPid}`;
+      console.log(`[${timestamp}] ${restartMessage}`);
+    } catch (err) {
+      restartMessage = `自动重启失败：${err.message}`;
+      console.error(`[${timestamp}] ${restartMessage}`);
+    }
+  }
+
+  if (!alertActive) {
+    await notify(
+      '监控进程异常',
+      `<p>【${timestamp}】${state.reason}；${restartMessage}。</p>`,
+    );
+    alertActive = true;
+  }
+}
+
+if (require.main === module) {
+  console.log(
+    `[${now()}] 看门狗已启动，每 5 分钟检查一次`
+    + `（自动重启: ${AUTO_RESTART ? '开启' : '关闭'}）`,
+  );
+  const runCheck = () => check().catch(
+    err => console.error(`[${now()}] 看门狗检查失败: ${err.message}`),
+  );
+  runCheck();
+  setInterval(runCheck, CHECK_INTERVAL);
+}
+
+module.exports = {
+  isHeartbeatFresh,
+  isPidRunning,
+  monitorState,
+};

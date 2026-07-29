@@ -8,18 +8,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const tls = require('tls');
-
-// ── 配置 ──────────────────────────────────────────────
-const CONFIG = {
-  eamsEntry: 'https://classes.tju.edu.cn/eams/homeExt.action',
-  gradeUrl: '/eams/teach/grade/course/person!search.action?semesterId=117&projectType=',
-  profileDir: path.join(__dirname, '.eams_profile'),
-  lastGradesFile: path.join(__dirname, 'grades_latest.json'),
-  logFile: path.join(__dirname, 'eams_monitor.log'),
-  pidFile: path.join(__dirname, '.eams_pid'),
-};
-const CHECK_INTERVAL = 15 * 60 * 1000; // 15 分钟
+const { sendMail: deliverMail } = require('./mailer');
 
 // ── 环境变量 ──────────────────────────────────────────
 function loadEnv(filepath) {
@@ -36,6 +25,26 @@ function loadEnv(filepath) {
   }
 }
 loadEnv(path.join(__dirname, 'eams.env'));
+
+function positiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+// ── 配置 ──────────────────────────────────────────────
+const CONFIG = {
+  eamsEntry: process.env.EAMS_ENTRY_URL || 'https://classes.tju.edu.cn/eams/homeExt.action',
+  gradeUrl: process.env.EAMS_GRADE_URL || '/eams/teach/grade/course/person!search.action',
+  profileDir: path.join(__dirname, '.eams_profile'),
+  lastGradesFile: path.join(__dirname, 'grades_latest.json'),
+  logFile: path.join(__dirname, 'eams_monitor.log'),
+  pidFile: path.join(__dirname, '.eams_pid'),
+  heartbeatFile: path.join(__dirname, '.eams_heartbeat'),
+};
+const CHECK_INTERVAL = positiveNumber(process.env.CHECK_INTERVAL_MINUTES, 15) * 60 * 1000;
+const HEARTBEAT_INTERVAL = 60 * 1000;
+const EAMS_HOST = new URL(CONFIG.eamsEntry).hostname;
+const CAS_HOST = process.env.EAMS_CAS_HOST || 'sso.tju.edu.cn';
 
 // ── 工具 ──────────────────────────────────────────────
 function log(tag, msg) {
@@ -61,15 +70,88 @@ function now() {
   return new Date().toLocaleString('zh-CN', { hour12: false });
 }
 
+function readPid(filepath = CONFIG.pidFile) {
+  try {
+    const content = fs.readFileSync(filepath, 'utf-8').trim();
+    if (!content) return null;
+    if (/^\d+$/.test(content)) return Number.parseInt(content, 10);
+    const record = JSON.parse(content);
+    return Number.isInteger(record.pid) ? record.pid : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPidRunning(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquirePidFile() {
+  const existingPid = readPid();
+  if (existingPid && existingPid !== process.pid && isPidRunning(existingPid)) {
+    throw new Error(`监控已经在运行 (PID ${existingPid})`);
+  }
+  fs.writeFileSync(CONFIG.pidFile, JSON.stringify({
+    pid: process.pid,
+    startedAt: new Date().toISOString(),
+  }), 'utf-8');
+}
+
+function writeHeartbeat() {
+  fs.writeFileSync(CONFIG.heartbeatFile, new Date().toISOString(), 'utf-8');
+}
+
+function cleanupRuntimeFiles() {
+  if (readPid() === process.pid) {
+    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
+    try { fs.unlinkSync(CONFIG.heartbeatFile); } catch {}
+  }
+}
+
+function loadGradeSnapshot(filepath = CONFIG.lastGradesFile) {
+  try {
+    const value = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
+    return Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveGradeSnapshot(grades, filepath = CONFIG.lastGradesFile) {
+  const tempFile = `${filepath}.tmp`;
+  fs.writeFileSync(tempFile, JSON.stringify(grades, null, 2), 'utf-8');
+  fs.renameSync(tempFile, filepath);
+}
+
 // ── EAMS 页面判断 ─────────────────────────────────────
-async function isOnCasPage(page) { return page.url().includes('sso.tju.edu.cn'); }
-async function isOnEamsPage(page) { return page.url().includes('classes.tju.edu.cn') && !page.url().includes('sso.tju.edu.cn'); }
+function pageHostname(page) {
+  try { return new URL(page.url()).hostname; } catch { return ''; }
+}
+async function isOnCasPage(page) { return pageHostname(page) === CAS_HOST; }
+async function isOnEamsPage(page) { return pageHostname(page) === EAMS_HOST; }
+
+class SessionExpiredError extends Error {
+  constructor() {
+    super('EAMS 会话已过期');
+    this.name = 'SessionExpiredError';
+  }
+}
 
 // ── 登录 ──────────────────────────────────────────────
 async function autoLogin(page) {
   const username = process.env.EAMS_USERNAME;
   const password = process.env.EAMS_PASSWORD;
   if (!username || !password) return false;
+  if (!process.env.DASHSCOPE_API_KEY) {
+    log('LOGIN', '未配置 DASHSCOPE_API_KEY，跳过 AI 登录');
+    return false;
+  }
 
   const { execFile } = require('child_process');
   const captchaPath = path.join(__dirname, '.captcha_tmp.png');
@@ -134,8 +216,8 @@ async function manualLogin(page) {
   console.log('  登录后脚本会自动接管');
   console.log('========================================\n');
 
-  const username = process.env.EAMS_USERNAME || await ask('学号 (直接回车跳过) > ');
-  const password = process.env.EAMS_PASSWORD || await ask('密码 (直接回车跳过) > ');
+  const username = process.env.EAMS_USERNAME;
+  const password = process.env.EAMS_PASSWORD;
 
   if (username && password) {
     await page.waitForSelector('#un', { timeout: 60000 }).catch(() => {});
@@ -143,16 +225,20 @@ async function manualLogin(page) {
       await page.fill('#un', username);
       await page.fill('#pd', password);
       log('LOGIN', '已填写账号密码');
-      await ask('请在浏览器中输完验证码后，回终端按回车继续...');
-      try {
-        await page.locator('button[type="submit"], input[type="submit"]').first().click({ timeout: 5000 });
-        log('LOGIN', '已点击登录按钮');
-      } catch {
-        log('LOGIN', '未找到登录按钮，请手动点击');
+      if (process.stdin.isTTY) {
+        await ask('请在浏览器中输完验证码后，回终端按回车继续...');
+        try {
+          await page.locator('button[type="submit"], input[type="submit"]').first().click({ timeout: 5000 });
+          log('LOGIN', '已点击登录按钮');
+        } catch {
+          log('LOGIN', '未找到登录按钮，请手动点击');
+        }
+      } else {
+        log('LOGIN', '当前无交互终端，请在浏览器中填写验证码并点击登录');
       }
     }
   } else {
-    log('LOGIN', '请在浏览器中自行登录');
+    log('LOGIN', '未配置账号密码，请在浏览器中自行登录（终端不会读取密码）');
   }
 
   for (let i = 0; i < 300; i++) {
@@ -164,6 +250,18 @@ async function manualLogin(page) {
   }
   log('LOGIN', '等待超时');
   return false;
+}
+
+async function ensureLoggedIn(page) {
+  if (await isOnEamsPage(page)) return true;
+  if (!(await isOnCasPage(page))) return false;
+
+  let ok = await autoLogin(page);
+  if (!ok) {
+    log('LOGIN', '自动登录不可用或失败，切换到手动登录');
+    ok = await manualLogin(page);
+  }
+  return ok;
 }
 
 // ── 成绩提取 ──────────────────────────────────────────
@@ -179,22 +277,77 @@ async function retry(fn, times, label) {
   }
 }
 
+async function selectAllSemesters(page) {
+  const candidates = [
+    page.getByLabel(/(?:all|全部|所有).*学期/i).first(),
+    page.locator('input[type="checkbox"][id*="all" i], input[type="checkbox"][name*="all" i]').first(),
+  ];
+
+  for (const checkbox of candidates) {
+    try {
+      if (await checkbox.count() === 0 || !(await checkbox.isVisible())) continue;
+      if (!(await checkbox.isChecked())) {
+        await checkbox.check();
+        await page.waitForTimeout(2000);
+      }
+      return true;
+    } catch {}
+  }
+
+  log('EXTRACT', '未找到“All 学期”复选框，将使用页面当前查询范围');
+  return false;
+}
+
+function parseGradeRows(rawHeaders, rawRows) {
+  const headers = rawHeaders.map(header => String(header ?? '').trim().replace(/\s+/g, ''));
+  const scoreIndex = headers.findIndex(
+    header => header === '总评成绩' || header.includes('总评'),
+  );
+  const nameIndex = headers.findIndex(header => header === '课程名称');
+  if (scoreIndex < 0 || nameIndex < 0) return [];
+
+  const grades = [];
+  for (const rawCells of rawRows) {
+    if (rawCells.length < headers.length) continue;
+
+    const entry = {};
+    for (let index = 0; index < headers.length; index++) {
+      const text = String(rawCells[index] ?? '')
+        .trim()
+        .replace(/\u00a0/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (index === scoreIndex && text && !Number.isNaN(Number.parseFloat(text))) {
+        entry[headers[index]] = Number.parseFloat(text);
+      } else {
+        entry[headers[index]] = text;
+      }
+    }
+
+    if (entry[headers[nameIndex]] && entry[headers[scoreIndex]] !== '') {
+      grades.push(entry);
+    }
+  }
+  return grades;
+}
+
 async function extractGrades(page) {
-  await retry(() => page.goto(`https://classes.tju.edu.cn${CONFIG.gradeUrl}`, {
+  const gradeUrl = new URL(CONFIG.gradeUrl, CONFIG.eamsEntry).href;
+  await retry(() => page.goto(gradeUrl, {
     waitUntil: 'domcontentloaded', timeout: 30000,
   }), 3, '页面加载');
   await page.waitForTimeout(2000);
 
-  // 勾选 "All学期成绩" 确保抓全所有学期
-  try {
-    const allCheckbox = page.locator('input[type="checkbox"]').first();
-    if (await allCheckbox.count() > 0) {
-      const checked = await allCheckbox.isChecked();
-      if (!checked) { await allCheckbox.check(); await page.waitForTimeout(2000); }
-    }
-  } catch {}
+  if (await isOnCasPage(page)) throw new SessionExpiredError();
 
-  try { await page.waitForSelector('table', { timeout: 15000 }); } catch { return []; }
+  await selectAllSemesters(page);
+
+  try {
+    await page.waitForSelector('table', { timeout: 15000 });
+  } catch {
+    if (await isOnCasPage(page)) throw new SessionExpiredError();
+    return [];
+  }
 
   const tables = await page.$$('table');
   let grades = [];
@@ -203,139 +356,144 @@ async function extractGrades(page) {
     const ths = await table.$$('th');
     if (ths.length < 2) continue;
 
-    const headers = [];
+    const rawHeaders = [];
     for (const th of ths) {
-      headers.push((await th.textContent()).trim().replace(/\s+/g, ''));
+      rawHeaders.push(await th.textContent());
     }
 
-    const scoreIdx = headers.findIndex(h => h === '总评成绩' || h.includes('总评'));
-    const nameIdx = headers.findIndex(h => h === '课程名称');
-    if (scoreIdx < 0 || nameIdx < 0) continue;
-
+    const rawRows = [];
     const rows = await table.$$('tr');
     for (const row of rows) {
       const cls = (await row.getAttribute('class')) || '';
       if (/title|head|info/i.test(cls)) continue;
       const cells = await row.$$('td');
-      if (cells.length < headers.length) continue;
-
-      const entry = {};
-      for (let i = 0; i < headers.length; i++) {
-        let text = (await cells[i].textContent()).trim().replace(/ /g, '').replace(/\s+/g, ' ').trim();
-        if (i === scoreIdx && text && !isNaN(parseFloat(text))) {
-          entry[headers[i]] = parseFloat(text);
-        } else {
-          entry[headers[i]] = text || '';
-        }
+      if (cells.length === 0) continue;
+      const rawCells = [];
+      for (const cell of cells) {
+        rawCells.push(await cell.textContent());
       }
-      if (entry[headers[nameIdx]] && entry[headers[scoreIdx]] !== '') {
-        grades.push(entry);
-      }
+      rawRows.push(rawCells);
     }
+
+    grades.push(...parseGradeRows(rawHeaders, rawRows));
   }
 
   log('EXTRACT', `共 ${grades.length} 门课程`);
   return grades;
 }
 
+async function extractWithSessionRecovery(page) {
+  try {
+    return await extractGrades(page);
+  } catch (err) {
+    if (!(err instanceof SessionExpiredError) && !(await isOnCasPage(page))) throw err;
+
+    log('CHECK', '会话已过期，立即尝试重新登录');
+    if (!(await ensureLoggedIn(page))) {
+      throw new Error('会话过期且重新登录失败');
+    }
+    log('CHECK', '重新登录成功，继续本次查询');
+    return extractGrades(page);
+  }
+}
+
 // ── 成绩对比 ──────────────────────────────────────────
+function gradeKey(grade) {
+  const text = (value) => String(value ?? '').trim();
+  const courseCode = text(grade['课程代码']);
+  const courseName = text(grade['课程名称']);
+  const semester = text(grade['学年学期'] || grade['学期']);
+  const classCode = text(
+    grade['教学班号']
+      || grade['课程序号']
+      || grade['教学班']
+      || grade['课程号'],
+  );
+
+  return [courseCode || courseName, semester, classCode, courseName].join('\u001f');
+}
+
 function diffGrades(oldGrades, newGrades) {
   const oldMap = new Map();
   for (const g of oldGrades) {
-    const key = g['课程名称'] || g['课程代码'];
-    oldMap.set(key, g['总评成绩']);
+    const key = gradeKey(g);
+    const entries = oldMap.get(key) || [];
+    entries.push(g);
+    oldMap.set(key, entries);
   }
 
   const changes = [];
   for (const g of newGrades) {
-    const key = g['课程名称'] || g['课程代码'];
-    const oldScore = oldMap.get(key);
-    if (oldScore === undefined) {
+    const key = gradeKey(g);
+    const oldEntries = oldMap.get(key);
+    const oldGrade = oldEntries?.shift();
+    if (oldEntries?.length === 0) oldMap.delete(key);
+
+    if (!oldGrade) {
       changes.push({ ...g, _change: 'new' });
-    } else if (String(oldScore) !== String(g['总评成绩'])) {
-      changes.push({ ...g, _change: 'updated', _oldScore: oldScore });
+    } else if (String(oldGrade['总评成绩']) !== String(g['总评成绩'])) {
+      changes.push({ ...g, _change: 'updated', _oldScore: oldGrade['总评成绩'] });
     }
-    oldMap.delete(key);
   }
-  for (const [key, score] of oldMap) {
-    changes.push({ '课程名称': key, '总评成绩': score, _change: 'removed' });
+
+  for (const oldEntries of oldMap.values()) {
+    for (const oldGrade of oldEntries) {
+      changes.push({ ...oldGrade, _change: 'removed' });
+    }
   }
 
   return changes;
 }
 
 // ── 邮件发送 ──────────────────────────────────────────
-function sendMail(subject, body) {
-  return new Promise((resolve, reject) => {
-    const smtpUser = process.env.QQ_EMAIL;
-    const smtpPass = process.env.QQ_SMTP_CODE;
-    const toEmail = process.env.NOTIFY_EMAIL || smtpUser;
-    if (!smtpUser || !smtpPass) { log('MAIL', '未配置邮箱'); return resolve(false); }
-
-    const raw = [
-      `From: "tju-auto-grade" <${smtpUser}>`,
-      `To: <${toEmail}>`,
-      `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=UTF-8',
-      '',
-      body,
-    ].join('\r\n');
-
-    const socket = tls.connect({ host: 'smtp.qq.com', port: 465 }, () => {
-      let step = 0;
-      function send(cmd) { socket.write(cmd + '\r\n'); }
-      socket.on('data', (d) => {
-        const code = parseInt(d.toString().slice(0, 3));
-        if (code >= 500) return reject(new Error(`SMTP ${code}`));
-        switch (step) {
-          case 0: step = 1; send('EHLO eams-checker'); break;
-          case 1: step = 2; send('AUTH LOGIN'); break;
-          case 2: step = 3; send(Buffer.from(smtpUser).toString('base64')); break;
-          case 3: step = 4; send(Buffer.from(smtpPass).toString('base64')); break;
-          case 4: step = 5; send(`MAIL FROM:<${smtpUser}>`); break;
-          case 5: step = 6; send(`RCPT TO:<${toEmail}>`); break;
-          case 6: step = 7; send('DATA'); break;
-          case 7: step = 8; send(raw + '\r\n.'); break;
-          case 8: send('QUIT'); log('MAIL', '发送成功'); resolve(true); break;
-        }
-      });
-    });
-    socket.on('error', reject);
-    socket.setTimeout(30000, () => reject(new Error('SMTP 超时')));
-  });
+async function sendMail(subject, body) {
+  const delivered = await deliverMail(subject, body);
+  if (delivered) log('MAIL', `发送成功: ${subject}`);
+  else log('MAIL', '未配置邮箱，跳过发送');
+  return delivered;
 }
 
 function buildSubject(change) {
-  const name = change['课程名称'] || '未知课程';
+  const name = String(change['课程名称'] || '未知课程').replace(/[\r\n]+/g, ' ').trim();
   const gpa = change['绩点'];
   if (gpa === 4 || gpa === '4') return `出分啦！来自${name}的好消息哦！`;
   return `请查看${name}的成绩`;
 }
 
-function buildUpdateEmail(changes, allGrades) {
-  const fmtScore = (v) => v !== undefined && v !== '' ? v : '-';
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function buildUpdateEmail(changes) {
+  const fmtScore = (value) => escapeHtml(
+    value !== undefined && value !== '' ? value : '-',
+  );
 
   const rows = changes.map(g => {
-    const name = g['课程名称'] || '-';
+    const name = escapeHtml(g['课程名称'] || '-');
     const score = fmtScore(g['总评成绩']);
     const credit = fmtScore(g['学分']);
     const gpa = fmtScore(g['绩点']);
-    const semester = g['学年学期'] || '';
-    const category = g['课程性质'] || g['课程类别'] || '';
+    const semester = escapeHtml(g['学年学期'] || '');
+    const category = escapeHtml(g['课程性质'] || g['课程类别'] || '');
 
     let tag = '';
     if (g._change === 'new') tag = ' <span style="color:red;font-size:12px">NEW</span>';
-    else if (g._change === 'updated') tag = ` <span style="color:orange;font-size:12px">${g._oldScore}→${score}</span>`;
+    else if (g._change === 'updated') tag = ` <span style="color:orange;font-size:12px">${escapeHtml(g._oldScore)}→${score}</span>`;
     else if (g._change === 'removed') tag = ' <span style="color:gray;font-size:12px">已移除</span>';
 
     // 平时/期末/实验成绩明细
     const daily = fmtScore(g['平时成绩']);
-    const dailyPct = g['平时成绩占比'] || '';
+    const dailyPct = escapeHtml(g['平时成绩占比'] || '');
     const final = fmtScore(g['期末成绩']);
-    const finalPct = g['期末成绩占比'] || '';
+    const finalPct = escapeHtml(g['期末成绩占比'] || '');
     const lab = fmtScore(g['实验成绩']);
-    const labPct = g['实验成绩占比'] || '';
+    const labPct = escapeHtml(g['实验成绩占比'] || '');
 
     let detail = '';
     if (daily !== '-' || final !== '-' || lab !== '-') {
@@ -378,161 +536,197 @@ function buildUpdateEmail(changes, allGrades) {
 // ── 主流程 ────────────────────────────────────────────
 async function main() {
   log('INIT', '=== 查成绩助手启动 ===');
-  fs.writeFileSync(CONFIG.pidFile, String(process.pid), 'utf-8');
-  log('INIT', '启动浏览器 (Edge)...');
-  const context = await chromium.launchPersistentContext(CONFIG.profileDir, {
-    headless: false,
-    channel: 'msedge',
-    args: ['--start-maximized'],
-  });
-
-  const pages = context.pages();
-  const page = pages.length > 0 ? pages[0] : await context.newPage();
-
-  // ── 登录 ──
-  log('INIT', '访问 EAMS...');
-  await page.goto(CONFIG.eamsEntry, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForTimeout(2000);
-
-  if (await isOnCasPage(page)) {
-    log('INIT', '尝试 AI 自动登录...');
-    let ok = await autoLogin(page);
-    if (!ok) {
-      log('INIT', 'AI 登录失败，切换到手动登录');
-      ok = await manualLogin(page);
+  acquirePidFile();
+  writeHeartbeat();
+  const heartbeatTimer = setInterval(() => {
+    try { writeHeartbeat(); } catch (err) {
+      log('HEARTBEAT', `写入失败: ${err.message}`);
     }
-    if (!ok) { log('FAIL', '登录失败'); await context.close(); process.exit(1); }
-  } else if (await isOnEamsPage(page)) {
-    log('INIT', '会话有效，跳过登录');
-  }
-
-  // ── 首次抓取 ──
-  log('INIT', '首次抓取成绩...');
-  let lastGrades = await extractGrades(page);
-  if (lastGrades.length === 0) {
-    log('FAIL', '未抓到成绩，退出');
-    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
-    await context.close();
-    process.exit(1);
-  }
-
-  fs.writeFileSync(CONFIG.lastGradesFile, JSON.stringify(lastGrades, null, 2), 'utf-8');
-  log('INIT', `初始快照: ${lastGrades.length} 门课程`);
-
-  const firstBody = buildUpdateEmail(
-    lastGrades.map(g => ({ ...g, _change: 'new' })),
-    lastGrades,
-  );
-  try {
-    await sendMail('监控已启动', firstBody);
-    log('INIT', '测试邮件已发送');
-  } catch (err) {
-    log('INIT', `测试邮件失败: ${err.message}`);
-  }
-
-  // ── 常驻监控 ──
-  const intervalH = CHECK_INTERVAL / 3600000;
-  console.log(`\n${'='.repeat(50)}`);
-  console.log(`  监控已启动，每 ${intervalH} 小时检查一次`);
-  console.log(`  浏览器不要关 | 日志: ${CONFIG.logFile}`);
-  console.log(`${'='.repeat(50)}\n`);
-
-  let failCount = 0;
+  }, HEARTBEAT_INTERVAL);
+  let context = null;
   let timer = null;
+  let shuttingDown = false;
 
-  async function check() {
-    const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-    log('CHECK', `--- ${ts} 开始检查 ---`);
+  try {
+    log('INIT', '启动浏览器 (Edge)...');
+    context = await chromium.launchPersistentContext(CONFIG.profileDir, {
+      headless: false,
+      channel: 'msedge',
+      args: ['--start-maximized'],
+    });
 
-    try {
-      const freshGrades = await extractGrades(page);
+    const pages = context.pages();
+    const page = pages.length > 0 ? pages[0] : await context.newPage();
 
-      if (freshGrades.length === 0) {
-        failCount++;
-        log('CHECK', `提取失败 (连续 ${failCount} 次)`);
-        if (failCount >= 3) {
-          try {
-            await sendMail('EAMS 监控异常',
-              `<p>【${now()}】连续 ${failCount} 次提取失败，请检查浏览器窗口。</p>`);
-          } catch {}
-        }
-        scheduleNext();
-        return;
-      }
+    // ── 登录 ──
+    log('INIT', '访问 EAMS...');
+    await page.goto(CONFIG.eamsEntry, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(2000);
 
-      failCount = 0;
+    if (await isOnCasPage(page)) {
+      log('INIT', '需要登录 EAMS...');
+      if (!(await ensureLoggedIn(page))) throw new Error('登录失败');
+    } else if (await isOnEamsPage(page)) {
+      log('INIT', '会话有效，跳过登录');
+    } else {
+      throw new Error(`访问了非预期页面: ${page.url()}`);
+    }
 
-      const changes = diffGrades(lastGrades, freshGrades);
+    // ── 首次抓取与快照恢复 ──
+    log('INIT', '抓取当前成绩...');
+    const currentGrades = await extractWithSessionRecovery(page);
+    if (currentGrades.length === 0) throw new Error('未抓到成绩');
 
-      if (changes.length > 0) {
-        log('CHECK', `发现 ${changes.length} 门课程有变化`);
-        for (const g of changes) {
-          const body = buildUpdateEmail([g], freshGrades);
-          await sendMail(buildSubject(g), body);
-        }
-        lastGrades = freshGrades;
-        fs.writeFileSync(CONFIG.lastGradesFile, JSON.stringify(lastGrades, null, 2), 'utf-8');
-      } else {
-        log('CHECK', '无变化');
-      }
-    } catch (err) {
-      failCount++;
-      log('CHECK', `异常: ${err.message} (连续 ${failCount} 次)`);
-      if (failCount >= 3) {
+    const savedGrades = loadGradeSnapshot();
+    let lastGrades = currentGrades;
+
+    if (savedGrades) {
+      const offlineChanges = diffGrades(savedGrades, currentGrades);
+      log('INIT', `已恢复快照: ${savedGrades.length} 门课程`);
+      if (offlineChanges.length > 0) {
+        log('INIT', `发现停机期间 ${offlineChanges.length} 门课程有变化`);
         try {
-          await sendMail('EAMS 监控异常',
-            `<p>【${now()}】连续 ${failCount} 次异常: ${err.message}</p>`);
-        } catch {}
-      }
-      if (await isOnCasPage(page)) {
-        log('CHECK', '会话过期，等待重新登录 (最多 10 分钟)...');
-        for (let i = 0; i < 600; i++) {
-          await page.waitForTimeout(1000);
-          if (await isOnEamsPage(page)) {
-            log('CHECK', '登录成功，恢复监控');
-            failCount = 0;
-            scheduleNext();
-            return check();
+          for (const grade of offlineChanges) {
+            await sendMail(buildSubject(grade), buildUpdateEmail([grade]));
           }
+          saveGradeSnapshot(currentGrades);
+        } catch (err) {
+          lastGrades = savedGrades;
+          log('INIT', `离线变化通知失败，将在下次检查重试: ${err.message}`);
         }
-        log('CHECK', '等待超时，下次继续尝试');
+      } else {
+        saveGradeSnapshot(currentGrades);
+      }
+    } else {
+      saveGradeSnapshot(currentGrades);
+      log('INIT', `已创建初始快照: ${currentGrades.length} 门课程`);
+      try {
+        const firstBody = buildUpdateEmail(
+          currentGrades.map(grade => ({ ...grade, _change: 'new' })),
+        );
+        await sendMail('监控已启动', firstBody);
+      } catch (err) {
+        log('INIT', `启动通知失败: ${err.message}`);
       }
     }
+
+    // ── 常驻监控 ──
+    const intervalMinutes = CHECK_INTERVAL / 60000;
+    console.log(`\n${'='.repeat(50)}`);
+    console.log(`  监控已启动，每 ${intervalMinutes} 分钟检查一次`);
+    console.log(`  浏览器不要关 | 日志: ${CONFIG.logFile}`);
+    console.log(`${'='.repeat(50)}\n`);
+
+    let failCount = 0;
+    let failureAlertActive = false;
+
+    async function recordFailure(error) {
+      failCount++;
+      log('CHECK', `失败: ${error.message} (连续 ${failCount} 次)`);
+      if (failCount >= 3 && !failureAlertActive) {
+        try {
+          await sendMail(
+            'EAMS 监控异常',
+            `<p>【${now()}】连续 ${failCount} 次检查失败：${error.message}</p>`,
+          );
+          failureAlertActive = true;
+        } catch (mailError) {
+          log('MAIL', `异常报警发送失败: ${mailError.message}`);
+        }
+      }
+    }
+
+    async function markHealthy() {
+      const shouldNotifyRecovery = failureAlertActive;
+      failCount = 0;
+      failureAlertActive = false;
+      if (shouldNotifyRecovery) {
+        try {
+          await sendMail('EAMS 监控已恢复', `<p>【${now()}】成绩监控已恢复正常。</p>`);
+        } catch (err) {
+          log('MAIL', `恢复通知发送失败: ${err.message}`);
+        }
+      }
+    }
+
+    async function check() {
+      const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      log('CHECK', `--- ${ts} 开始检查 ---`);
+
+      try {
+        const freshGrades = await extractWithSessionRecovery(page);
+        if (freshGrades.length === 0) throw new Error('成绩表为空或页面结构已变化');
+
+        const changes = diffGrades(lastGrades, freshGrades);
+        if (changes.length > 0) {
+          log('CHECK', `发现 ${changes.length} 门课程有变化`);
+          for (const grade of changes) {
+            await sendMail(buildSubject(grade), buildUpdateEmail([grade]));
+          }
+          lastGrades = freshGrades;
+          saveGradeSnapshot(lastGrades);
+        } else {
+          log('CHECK', '无变化');
+        }
+
+        await markHealthy();
+      } catch (err) {
+        await recordFailure(err);
+      } finally {
+        scheduleNext();
+      }
+    }
+
+    function scheduleNext() {
+      timer = setTimeout(check, CHECK_INTERVAL);
+    }
+
+    async function shutdown(exitCode = 0) {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      log('EXIT', '正在关闭...');
+      clearTimeout(timer);
+      clearInterval(heartbeatTimer);
+      cleanupRuntimeFiles();
+      try { await context.close(); } catch {}
+      process.exit(exitCode);
+    }
+
+    process.once('SIGINT', () => shutdown(0));
+    process.once('SIGTERM', () => shutdown(0));
+    process.once('unhandledRejection', (reason) => {
+      log('FATAL', `未处理的 Promise 拒绝: ${reason}`);
+      shutdown(1);
+    });
+    process.once('uncaughtException', (err) => {
+      log('FATAL', `未捕获的异常: ${err.message}`);
+      shutdown(1);
+    });
 
     scheduleNext();
-  }
-
-  function scheduleNext() {
-    timer = setTimeout(check, CHECK_INTERVAL);
-  }
-
-  scheduleNext();
-
-  async function shutdown() {
-    log('EXIT', '正在关闭...');
+  } catch (err) {
     clearTimeout(timer);
-    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
-    try { await context.close(); } catch {}
-    process.exit(0);
+    clearInterval(heartbeatTimer);
+    cleanupRuntimeFiles();
+    try { await context?.close(); } catch {}
+    throw err;
   }
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
-  process.on('unhandledRejection', (reason) => {
-    log('FATAL', `未处理的 Promise 拒绝: ${reason}`);
-    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
-    process.exit(1);
-  });
-  process.on('uncaughtException', (err) => {
-    log('FATAL', `未捕获的异常: ${err.message}`);
-    try { fs.unlinkSync(CONFIG.pidFile); } catch {}
-    process.exit(1);
-  });
-  // readline 监听终端关闭
-  process.stdin.on('close', shutdown);
 }
 
-main().catch(err => {
-  try { fs.unlinkSync(CONFIG.pidFile); } catch {}
-  console.error('[FATAL]', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(err => {
+    cleanupRuntimeFiles();
+    console.error('[FATAL]', err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  SessionExpiredError,
+  buildUpdateEmail,
+  diffGrades,
+  gradeKey,
+  loadGradeSnapshot,
+  parseGradeRows,
+  saveGradeSnapshot,
+};
