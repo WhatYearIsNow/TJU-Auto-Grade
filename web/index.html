@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="dashboard-token" content="__DASHBOARD_TOKEN__">
+  <title>TJU Auto Grade · 本机控制台</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">T</div>
+        <div>
+          <strong>TJU Auto Grade</strong>
+          <span>本机成绩控制台</span>
+        </div>
+      </div>
+
+      <nav class="nav-list" aria-label="主导航">
+        <button class="nav-item is-active" type="button" data-view="overview">
+          <span class="nav-icon" aria-hidden="true">⌂</span><span>运行概览</span>
+        </button>
+        <button class="nav-item" type="button" data-view="grades">
+          <span class="nav-icon" aria-hidden="true">成</span><span>成绩中心</span>
+        </button>
+        <button class="nav-item" type="button" data-view="notifications">
+          <span class="nav-icon" aria-hidden="true">信</span><span>通知记录</span>
+          <span class="nav-count" id="nav-pending-count" hidden>0</span>
+        </button>
+        <button class="nav-item" type="button" data-view="logs">
+          <span class="nav-icon" aria-hidden="true">记</span><span>运行日志</span>
+        </button>
+        <button class="nav-item" type="button" data-view="settings">
+          <span class="nav-icon" aria-hidden="true">设</span><span>系统设置</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-health">
+        <div class="health-row">
+          <span class="status-dot" id="sidebar-status-dot"></span>
+          <span id="sidebar-status-text">正在连接</span>
+        </div>
+        <p>所有数据只保存在这台电脑</p>
+      </div>
+    </aside>
+
+    <main class="main" id="main-content">
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+        <div class="page-heading">
+          <span class="eyebrow">天津大学 EAMS</span>
+          <h1 id="page-title">运行概览</h1>
+        </div>
+        <div class="topbar-status" aria-live="polite">
+          <span class="status-dot" id="topbar-status-dot"></span>
+          <span id="topbar-status-text">正在连接</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="view is-active" data-view-panel="overview" aria-labelledby="overview-heading">
+          <div class="hero-card">
+            <div class="hero-copy">
+              <span class="hero-kicker" id="hero-kicker">监控服务</span>
+              <h2 id="overview-heading">正在读取运行状态</h2>
+              <p id="hero-description">控制台已打开，正在与本机监控服务建立连接。</p>
+              <div class="hero-meta">
+                <span id="hero-last-check">最近检查：暂无</span>
+                <span id="hero-next-step">请稍候</span>
+              </div>
+            </div>
+            <div class="hero-actions">
+              <button class="button button-primary" type="button" data-action="check">立即查分</button>
+              <button class="button button-secondary" type="button" data-action="restart">重启监控</button>
+              <button class="button button-secondary" type="button" data-action="stop">停止监控</button>
+            </div>
+            <div class="hero-orbit" aria-hidden="true"><span></span></div>
+          </div>
+
+          <div class="metric-grid" aria-label="监控指标">
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon blue">课</span>已抓课程</div>
+              <strong id="metric-grades">—</strong>
+              <small id="metric-grades-note">等待首次抓取</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon green">时</span>运行时间</div>
+              <strong id="metric-uptime">—</strong>
+              <small>控制台持续在线</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon amber">信</span>待发通知</div>
+              <strong id="metric-pending">—</strong>
+              <small id="metric-pending-note">自动重试已启用</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon violet">检</span>连续失败</div>
+              <strong id="metric-failures">—</strong>
+              <small id="metric-failures-note">暂无异常</small>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel panel-large">
+              <div class="panel-header">
+                <div>
+                  <span class="panel-kicker">最近成绩</span>
+                  <h3>最新课程快照</h3>
+                </div>
+                <button class="text-button" type="button" data-go-view="grades">查看全部 →</button>
+              </div>
+              <div class="compact-grade-list" id="recent-grades">
+                <div class="empty-state compact">尚未读取成绩快照</div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <span class="panel-kicker">服务能力</span>
+                  <h3>环境就绪情况</h3>
+                </div>
+              </div>
+              <div class="readiness-list" id="readiness-list">
+                <div class="readiness-row"><span>监控浏览器</span><b>检测中</b></div>
+                <div class="readiness-row"><span>邮件通知</span><b>检测中</b></div>
+                <div class="readiness-row"><span>邮件指令</span><b>检测中</b></div>
+                <div class="readiness-row"><span>AI 验证码</span><b>检测中</b></div>
+              </div>
+            </article>
+
+            <article class="panel panel-wide">
+              <div class="panel-header">
+                <div>
+                  <span class="panel-kicker">快捷操作</span>
+                  <h3>常用控制</h3>
+                </div>
+              </div>
+              <div class="quick-actions">
+                <button class="quick-action" type="button" data-action="check">
+                  <span class="quick-icon blue">↻</span><span><b>立即查分</b><small>不等待下个周期</small></span>
+                </button>
+                <button class="quick-action" type="button" data-action="retry-notifications">
+                  <span class="quick-icon amber">信</span><span><b>重试通知</b><small>处理待发邮件</small></span>
+                </button>
+                <button class="quick-action" type="button" data-action="test-email">
+                  <span class="quick-icon green">✓</span><span><b>测试邮箱</b><small>发送一封测试邮件</small></span>
+                </button>
+                <button class="quick-action" type="button" data-go-view="logs">
+                  <span class="quick-icon violet">记</span><span><b>查看日志</b><small>定位最近异常</small></span>
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="grades" aria-labelledby="grades-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">成绩中心</span><h2 id="grades-heading">全部课程成绩</h2><p>从本机最新快照读取，不会额外访问教务系统。</p></div>
+            <button class="button button-primary" type="button" data-action="check">立即刷新成绩</button>
+          </div>
+
+          <div class="semester-browser">
+            <div class="semester-copy"><span>成绩范围</span><strong id="grade-source-label">监控成绩快照</strong><small>历史查询只临时展示，不会覆盖监控数据或触发通知。</small></div>
+            <div class="semester-controls">
+              <label class="select-field"><span class="sr-only">选择要查询的学期</span><select id="semester-query-select"><option value="">正在读取可用学期…</option></select></label>
+              <button class="text-button semester-toggle" id="toggle-older-semesters" type="button" aria-expanded="false" hidden>显示更早学期</button>
+              <button class="button button-primary" id="query-semester" type="button">查看所选学期</button>
+              <button class="button button-secondary" id="show-current-grades" type="button" hidden>返回监控快照</button>
+            </div>
+          </div>
+
+          <div class="filter-bar">
+            <label class="search-field"><span class="sr-only">搜索课程</span><input id="grade-search" type="search" placeholder="搜索课程名称或代码"></label>
+            <label class="select-field"><span class="sr-only">筛选学期</span><select id="semester-filter"><option value="">全部学期</option></select></label>
+            <span class="result-count" id="grade-result-count">0 门课程</span>
+          </div>
+
+          <article class="panel table-panel">
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><th>课程</th><th>学期</th><th>教学班</th><th>学分</th><th>总评</th><th>绩点</th><th>明细</th></tr></thead>
+                <tbody id="grades-table-body"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="grades-empty" hidden>暂时没有可显示的成绩</div>
+          </article>
+
+          <article class="panel weighted-panel">
+            <div class="panel-header">
+              <div><span class="panel-kicker">即时查询</span><h3>总加权与累计成绩</h3><p>点击后会打开 EAMS 总加权页面读取最新数据。</p></div>
+              <button class="button button-secondary" type="button" data-action="weighted">查询总加权</button>
+            </div>
+            <div class="weighted-result" id="weighted-result"><div class="empty-state compact">尚未查询</div></div>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="notifications" aria-labelledby="notifications-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">通知中心</span><h2 id="notifications-heading">邮件发送记录</h2><p>成绩通知先写入本机队列，失败后自动退避重试。</p></div>
+            <div class="button-row"><button class="button button-secondary" type="button" data-action="test-email">发送测试邮件</button><button class="button button-primary" type="button" data-action="retry-notifications">立即重试</button></div>
+          </div>
+          <div class="notification-summary">
+            <div><span>待发送</span><strong id="notification-pending">0</strong></div>
+            <div><span>重试中</span><strong id="notification-retrying">0</strong></div>
+            <div><span>已发送</span><strong id="notification-sent">0</strong></div>
+          </div>
+          <article class="panel">
+            <div class="notification-list" id="notification-list"><div class="empty-state">暂无通知记录</div></div>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="logs" aria-labelledby="logs-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">运行记录</span><h2 id="logs-heading">实时日志</h2><p>显示最近 200 条本机日志，页面每五秒自动刷新。</p></div>
+            <button class="button button-secondary" type="button" id="refresh-logs">刷新日志</button>
+          </div>
+          <article class="log-panel">
+            <div class="log-toolbar"><span><i></i><i></i><i></i></span><b>eams_monitor.log</b><small id="log-updated">尚未刷新</small></div>
+            <div class="log-lines" id="log-lines" role="log" aria-live="polite"><div class="log-empty">暂无日志</div></div>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="settings" aria-labelledby="settings-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">系统设置</span><h2 id="settings-heading">监控与通知配置</h2><p>保存后会自动重启监控；敏感字段留空表示保持原值。</p></div>
+            <div class="button-row">
+              <button class="button button-secondary" id="import-settings" type="button">导入配置</button>
+              <button class="button button-secondary" id="export-settings" type="button">导出配置</button>
+              <input id="settings-import-file" type="file" accept="application/json,.json" hidden>
+            </div>
+          </div>
+          <article class="setup-guide" id="setup-guide">
+            <div class="setup-guide-copy"><span>首次使用引导</span><strong id="setup-guide-title">正在检查配置…</strong><small id="setup-guide-description">配置只保存在这台电脑，不会上传到控制台以外的位置。</small></div>
+            <div class="setup-steps">
+              <div class="setup-step" data-setup-step="eams"><i>1</i><span><b>教务登录</b><small>学号和密码，必填</small></span><em>待检查</em></div>
+              <div class="setup-step" data-setup-step="mail"><i>2</i><span><b>邮件通知</b><small>发件账号和授权码，推荐</small></span><em>待检查</em></div>
+              <div class="setup-step" data-setup-step="aiLogin"><i>3</i><span><b>自动验证码</b><small>千问 API Key，可选</small></span><em>待检查</em></div>
+            </div>
+          </article>
+          <form id="settings-form">
+            <div class="settings-grid">
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon blue">教</span><div><h3>教务登录</h3><p>用于 EAMS 登录和验证码识别</p></div></div>
+                <label class="field"><span>学号 <b class="required-mark">必填</b></span><input name="EAMS_USERNAME" autocomplete="username" placeholder="请输入学号"></label>
+                <label class="field"><span>教务密码 <b class="required-mark">必填</b> <em id="configured-EAMS_PASSWORD"></em></span><input name="EAMS_PASSWORD" type="password" autocomplete="new-password" placeholder="已配置时留空不修改"></label>
+                <label class="field"><span>千问 API Key <em id="configured-DASHSCOPE_API_KEY"></em></span><input name="DASHSCOPE_API_KEY" type="password" autocomplete="off" placeholder="可选，留空不修改"></label>
+                <label class="field"><span>验证码识别模型</span><input name="VISION_MODEL" list="vision-model-options" placeholder="qwen3.5-ocr"><datalist id="vision-model-options"><option value="qwen3.5-ocr"><option value="qwen-vl-ocr-latest"><option value="qwen3-vl-flash"></datalist></label>
+              </article>
+
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon green">信</span><div><h3>邮件通知</h3><p>发送成绩变化与接收查询指令</p></div></div>
+                <label class="field"><span>QQ 发件邮箱</span><input name="QQ_EMAIL" type="email" autocomplete="email" placeholder="example@qq.com"></label>
+                <label class="field"><span>邮箱授权码 <em id="configured-QQ_SMTP_CODE"></em></span><input name="QQ_SMTP_CODE" type="password" autocomplete="new-password" placeholder="留空不修改"></label>
+                <label class="field"><span>通知接收邮箱</span><input name="NOTIFY_EMAIL" type="email" placeholder="默认发送给自己"></label>
+                <label class="field"><span>指令授权邮箱</span><input name="COMMAND_EMAIL" type="email" placeholder="默认使用通知邮箱"></label>
+                <label class="field"><span>邮件指令口令 <em id="configured-COMMAND_TOKEN"></em></span><input name="COMMAND_TOKEN" type="password" autocomplete="off" placeholder="建议设置，留空不修改"></label>
+              </article>
+
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon amber">时</span><div><h3>检查频率</h3><p>控制成绩、邮件和通知队列轮询</p></div></div>
+                <label class="field"><span>查分间隔（分钟）</span><input name="CHECK_INTERVAL_MINUTES" type="number" min="1" max="1440"></label>
+                <label class="field"><span>重新登录等待（分钟）</span><input name="RELOGIN_TIMEOUT_MINUTES" type="number" min="1" max="120"></label>
+                <label class="field"><span>邮件指令间隔（秒）</span><input name="IMAP_INTERVAL_SECONDS" type="number" min="15" max="3600"></label>
+                <label class="field"><span>IMAP 连接超时（秒）</span><input name="IMAP_SOCKET_TIMEOUT_SECONDS" type="number" min="60" max="1800"></label>
+                <label class="toggle-field"><span><b>启用邮件指令</b><small>允许从授权邮箱查询成绩</small></span><input name="IMAP_ENABLED" type="checkbox"><i aria-hidden="true"></i></label>
+                <details class="settings-details">
+                  <summary>高级重试策略</summary>
+                  <label class="field"><span>队列检查间隔（秒）</span><input name="OUTBOX_POLL_INTERVAL_SECONDS" type="number" min="10" max="3600"></label>
+                  <label class="field"><span>首次重试等待（秒）</span><input name="OUTBOX_RETRY_BASE_SECONDS" type="number" min="10" max="3600"></label>
+                  <label class="field"><span>最长重试等待（秒）</span><input name="OUTBOX_RETRY_MAX_SECONDS" type="number" min="60" max="86400"></label>
+                  <label class="field"><span>已发送记录保留（天）</span><input name="OUTBOX_RETENTION_DAYS" type="number" min="1" max="365"></label>
+                </details>
+              </article>
+
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon violet">览</span><div><h3>浏览器模式</h3><p>决定 EAMS 浏览器如何运行</p></div></div>
+                <label class="field"><span>浏览器通道</span><select name="BROWSER_CHANNEL"><option value="msedge">Microsoft Edge</option><option value="chromium">Playwright Chromium</option><option value="chrome">Google Chrome</option></select></label>
+                <label class="toggle-field"><span><b>无头模式</b><small>后台运行，但无法手动处理验证码</small></span><input name="HEADLESS" type="checkbox"><i aria-hidden="true"></i></label>
+                <div class="settings-note">推荐保持 Edge 可见模式。首次登录或验证码识别失败时，可以直接在浏览器窗口中操作。</div>
+              </article>
+
+              <article class="panel settings-card settings-card-wide">
+                <div class="settings-title"><span class="metric-icon green">邮</span><div><h3>通用邮箱服务器</h3><p>QQ 邮箱无需修改；使用其他邮箱时展开配置 SMTP 与 IMAP</p></div></div>
+                <details class="settings-details settings-details-grid">
+                  <summary>配置非 QQ 邮箱</summary>
+                  <div class="advanced-settings-grid">
+                    <label class="field"><span>SMTP 主机</span><input name="SMTP_HOST" placeholder="smtp.qq.com"></label>
+                    <label class="field"><span>SMTP 端口</span><input name="SMTP_PORT" type="number" min="1" max="65535"></label>
+                    <label class="field"><span>SMTP 用户名</span><input name="SMTP_USER" autocomplete="username" placeholder="通常是完整邮箱地址"></label>
+                    <label class="field"><span>SMTP 密码/授权码 <em id="configured-SMTP_PASS"></em></span><input name="SMTP_PASS" type="password" autocomplete="new-password" placeholder="留空不修改"></label>
+                    <label class="toggle-field"><span><b>SMTP SSL/TLS</b><small>465 端口通常需要开启</small></span><input name="SMTP_SECURE" type="checkbox"><i aria-hidden="true"></i></label>
+                    <span></span>
+                    <label class="field"><span>IMAP 主机</span><input name="IMAP_HOST" placeholder="imap.qq.com"></label>
+                    <label class="field"><span>IMAP 端口</span><input name="IMAP_PORT" type="number" min="1" max="65535"></label>
+                    <label class="field"><span>IMAP 用户名</span><input name="IMAP_USER" autocomplete="username" placeholder="通常是完整邮箱地址"></label>
+                    <label class="field"><span>IMAP 密码/授权码 <em id="configured-IMAP_PASS"></em></span><input name="IMAP_PASS" type="password" autocomplete="new-password" placeholder="留空不修改"></label>
+                  </div>
+                </details>
+              </article>
+            </div>
+            <div class="settings-footer">
+              <div><strong>保存会发生什么？</strong><span>配置写入本机 eams.env，然后安全重启监控浏览器。</span></div>
+              <div class="button-row"><button class="button button-secondary" type="button" data-action="test-email">测试邮箱</button><button class="button button-primary" type="submit">保存并启动监控</button></div>
+            </div>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

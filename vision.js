@@ -13,7 +13,7 @@ const http = require("http");
 
 const BASE_URL = process.env.DASHSCOPE_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
 const API_KEY = process.env.DASHSCOPE_API_KEY;
-const MODEL = process.env.VISION_MODEL || "qwen-vl-plus";
+const MODEL = process.env.VISION_MODEL || "qwen3.5-ocr";
 
 function parseArgs() {
   const argv = process.argv.slice(2);

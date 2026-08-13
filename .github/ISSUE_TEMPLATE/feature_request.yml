@@ -1,0 +1,35 @@
+name: 功能建议
+description: 建议新的能力或使用体验改进
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 使用场景
+      description: 说明当前遇到的问题，而不只是描述想要的按钮或实现。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+      description: 描述期望的行为、界面或工作流程。
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 说明已经尝试过的其他办法或可以接受的取舍。
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 范围确认
+      options:
+        - label: 该建议不要求上传、共享或公开个人成绩与登录凭据。
+          required: true

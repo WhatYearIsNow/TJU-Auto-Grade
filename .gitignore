@@ -1,11 +1,37 @@
-# 敏感文件
+# 敏感配置
 eams.env
 .eams_profile/
+
+# 运行时数据
 grades_latest.json
 eams_monitor.log
-*.png
 .captcha_tmp.png
 .eams_pid
+.eams_heartbeat
+.imap_last_uid
+grades_latest.json.tmp
+notification_outbox.json
+notification_outbox.json.*.tmp
+detail_probe.png
 
-# Node
+# 测试与本地工具产物
+test/artifacts/
+.playwright-mcp/
+.codex/
+
+# Node.js
 node_modules/
+npm-debug.log*
+
+# Python 界面测试
+__pycache__/
+*.py[cod]
+.venv/
+
+# 编辑器与系统文件
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp

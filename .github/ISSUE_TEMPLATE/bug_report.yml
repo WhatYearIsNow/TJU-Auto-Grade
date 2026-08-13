@@ -1,0 +1,75 @@
+name: Bug 报告
+description: 报告可以稳定复现的功能异常
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先删除日志、截图中的学号、成绩、邮箱、Cookie、授权码和 API Key。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 说明实际发生了什么，以及你认为正确的行为。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 启动……
+        2. 点击……
+        3. 出现……
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交
+      placeholder: 例如 2.1.0 或提交 SHA
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 运行环境
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux
+        - macOS
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js 版本
+      placeholder: node --version 的输出
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 脱敏后的日志
+      description: 仅粘贴与问题直接相关的片段；不要上传 eams.env 或浏览器会话目录。
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 Issue，没有找到相同问题。
+          required: true
+        - label: 我已删除所有账号、凭据和个人成绩信息。
+          required: true
