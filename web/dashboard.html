@@ -1,0 +1,1774 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="dashboard-token" content="__DASHBOARD_TOKEN__">
+  <title>TJU Auto Grade · 本机控制台</title>
+  <style nonce="__DASHBOARD_NONCE__">
+:root {
+  --ink: #172137;
+  --muted: #68738a;
+  --faint: #929caf;
+  --line: #e4e8f0;
+  --surface: #ffffff;
+  --canvas: #f4f6fa;
+  --nav: #121b2f;
+  --nav-soft: #1b2740;
+  --blue: #315ee7;
+  --blue-soft: #e9efff;
+  --green: #11876d;
+  --green-soft: #e3f6f0;
+  --amber: #c7781a;
+  --amber-soft: #fff1dc;
+  --violet: #7650c7;
+  --violet-soft: #f0eaff;
+  --red: #c64a57;
+  --red-soft: #ffe9eb;
+  --shadow: 0 12px 35px rgba(22, 35, 63, 0.07);
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 11px;
+  font-family: Inter, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html { min-width: 320px; background: var(--canvas); }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 82% -20%, rgba(49, 94, 231, 0.08), transparent 34%),
+    var(--canvas);
+}
+
+button, input, select { font: inherit; }
+button { color: inherit; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 10px;
+  left: 10px;
+  padding: 10px 14px;
+  color: white;
+  background: var(--blue);
+  border-radius: 8px;
+  transform: translateY(-140%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+.app-shell { min-height: 100vh; }
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
+  display: flex;
+  width: 244px;
+  flex-direction: column;
+  padding: 25px 18px 20px;
+  color: #e9eefb;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(69, 112, 255, 0.22), transparent 28%),
+    var(--nav);
+  box-shadow: 12px 0 32px rgba(15, 25, 47, 0.08);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 8px 28px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 13px;
+  color: white;
+  background: #3768ef;
+  box-shadow: 0 8px 22px rgba(54, 104, 239, 0.35);
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.brand strong { display: block; font-size: 14px; letter-spacing: 0.01em; }
+.brand span { display: block; margin-top: 3px; color: #8491aa; font-size: 11px; }
+
+.nav-list { display: grid; gap: 6px; }
+
+.nav-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  width: 100%;
+  min-height: 47px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  color: #94a0b7;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.nav-item:hover { color: #e8edfa; background: rgba(255, 255, 255, 0.055); }
+.nav-item:focus-visible { outline: 2px solid #6d92ff; outline-offset: 2px; }
+.nav-item.is-active { color: white; background: var(--nav-soft); box-shadow: inset 3px 0 #4d7cff; }
+.nav-item.is-active .nav-icon { color: #8eacff; }
+.nav-icon { font-size: 13px; font-weight: 700; text-align: center; }
+.nav-item > span:nth-child(2) { font-size: 13px; font-weight: 650; }
+
+.nav-count {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 99px;
+  color: #fff;
+  background: var(--red);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sidebar-health {
+  margin-top: auto;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.health-row { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 650; }
+.sidebar-health p { margin: 8px 0 0 18px; color: #74819a; font-size: 10px; line-height: 1.5; }
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aa4b5;
+  box-shadow: 0 0 0 4px rgba(154, 164, 181, 0.13);
+}
+.status-dot.is-running { background: #26b893; box-shadow: 0 0 0 4px rgba(38, 184, 147, 0.15); }
+.status-dot.is-starting { background: #e2a13c; box-shadow: 0 0 0 4px rgba(226, 161, 60, 0.15); animation: pulse 1.6s infinite; }
+.status-dot.is-error { background: #df6470; box-shadow: 0 0 0 4px rgba(223, 100, 112, 0.15); }
+
+@keyframes pulse { 50% { opacity: 0.45; transform: scale(0.9); } }
+
+.main { min-height: 100vh; margin-left: 244px; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 34px;
+  border-bottom: 1px solid rgba(226, 230, 239, 0.85);
+  background: rgba(247, 248, 251, 0.88);
+  backdrop-filter: blur(16px);
+}
+
+.page-heading { flex: 1; }
+.page-heading h1 { margin: 2px 0 0; font-size: 20px; line-height: 1.2; letter-spacing: -0.025em; }
+.eyebrow, .panel-kicker, .hero-kicker {
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.menu-button {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: white;
+  cursor: pointer;
+}
+
+.content { max-width: 1500px; margin: 0 auto; padding: 28px 34px 48px; }
+.view[hidden] { display: none !important; }
+
+.hero-card {
+  position: relative;
+  display: flex;
+  min-height: 196px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  overflow: hidden;
+  padding: 34px 38px;
+  border: 1px solid #dfe5f4;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(112deg, rgba(255, 255, 255, 0.97), rgba(246, 249, 255, 0.94)),
+    white;
+  box-shadow: var(--shadow);
+}
+
+.hero-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--blue);
+}
+.hero-card.status-running::before { background: var(--green); }
+.hero-card.status-error::before { background: var(--red); }
+.hero-card.status-starting::before { background: var(--amber); }
+
+.hero-copy { position: relative; z-index: 2; max-width: 720px; }
+.hero-copy h2 { margin: 10px 0 10px; font-size: clamp(25px, 3vw, 36px); letter-spacing: -0.04em; }
+.hero-copy > p { max-width: 650px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 22px; color: var(--faint); font-size: 11px; }
+.hero-actions { position: relative; z-index: 2; display: flex; flex-shrink: 0; flex-wrap: wrap; gap: 10px; }
+
+.hero-orbit {
+  position: absolute;
+  right: -40px;
+  bottom: -92px;
+  width: 260px;
+  height: 260px;
+  border: 1px solid rgba(49, 94, 231, 0.12);
+  border-radius: 50%;
+}
+.hero-orbit::before, .hero-orbit::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(49, 94, 231, 0.09);
+  border-radius: 50%;
+}
+.hero-orbit::before { inset: 38px; }
+.hero-orbit::after { inset: 76px; background: rgba(49, 94, 231, 0.035); }
+.hero-orbit span { position: absolute; top: 43px; left: 41px; width: 9px; height: 9px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 18px var(--blue); }
+
+.button {
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+.button:hover:not(:disabled) { transform: translateY(-1px); }
+.button:focus-visible, .text-button:focus-visible, .quick-action:focus-visible { outline: 3px solid rgba(49, 94, 231, 0.2); outline-offset: 2px; }
+.button:disabled { opacity: 0.55; cursor: wait; }
+.button-primary { color: white; background: var(--blue); box-shadow: 0 7px 16px rgba(49, 94, 231, 0.19); }
+.button-primary:hover:not(:disabled) { box-shadow: 0 10px 22px rgba(49, 94, 231, 0.26); }
+.button-secondary { border-color: var(--line); color: #354059; background: white; }
+.button-row { display: flex; flex-wrap: wrap; gap: 9px; }
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+  margin-top: 17px;
+}
+.metric-card {
+  min-height: 125px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 7px 24px rgba(26, 39, 67, 0.045);
+}
+.metric-label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; font-weight: 650; }
+.metric-icon, .quick-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+.metric-icon { width: 27px; height: 27px; }
+.quick-icon { width: 38px; height: 38px; }
+.blue { color: var(--blue); background: var(--blue-soft); }
+.green { color: var(--green); background: var(--green-soft); }
+.amber { color: var(--amber); background: var(--amber-soft); }
+.violet { color: var(--violet); background: var(--violet-soft); }
+.metric-card > strong { display: block; margin-top: 13px; font-size: 25px; letter-spacing: -0.04em; }
+.metric-card > small { display: block; margin-top: 3px; color: var(--faint); font-size: 10px; }
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
+  gap: 17px;
+  margin-top: 17px;
+}
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(23, 35, 64, 0.045);
+}
+.panel-large, .panel-wide { padding: 23px; }
+.panel-wide { grid-column: 1 / -1; }
+.dashboard-grid > .panel:not(.panel-large, .panel-wide) { padding: 23px; }
+.panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.panel-header h3, .settings-title h3 { margin: 5px 0 0; font-size: 15px; letter-spacing: -0.015em; }
+.panel-header p, .settings-title p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.text-button { padding: 5px; border: 0; color: var(--blue); background: transparent; font-size: 11px; font-weight: 700; cursor: pointer; }
+
+.compact-grade-list { display: grid; }
+.compact-grade {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 120px 70px 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+  border-top: 1px solid #edf0f5;
+}
+.compact-grade:first-child { border-top: 0; }
+.compact-grade-name { min-width: 0; }
+.compact-grade-name b { display: block; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.compact-grade-name small, .compact-grade > span { color: var(--faint); font-size: 10px; }
+.score-pill { justify-self: end; min-width: 42px; padding: 5px 7px; border-radius: 8px; color: var(--blue); background: var(--blue-soft); font-size: 12px !important; font-weight: 800; text-align: center; }
+
+.readiness-list { display: grid; }
+.readiness-row { display: flex; justify-content: space-between; gap: 12px; padding: 13px 0; border-top: 1px solid #edf0f5; color: var(--muted); font-size: 11px; }
+.readiness-row:first-child { border-top: 0; }
+.readiness-row b { color: var(--faint); font-size: 10px; }
+.readiness-row b.is-ready { color: var(--green); }
+.readiness-row b.is-warning { color: var(--amber); }
+
+.quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.quick-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fbfcfe;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+}
+.quick-action:hover { border-color: #cfd7e7; background: white; transform: translateY(-1px); }
+.quick-action b { display: block; font-size: 11px; }
+.quick-action small { display: block; margin-top: 3px; color: var(--faint); font-size: 9px; }
+
+.section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.section-heading h2 { margin: 6px 0 6px; font-size: 28px; letter-spacing: -0.04em; }
+.section-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+
+.semester-browser { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 14px; padding: 17px 19px; border: 1px solid #dce3f0; border-radius: 14px; background: linear-gradient(135deg, #f8faff, #fff); }
+.semester-copy span { display: block; color: var(--blue); font-size: 9px; font-weight: 750; letter-spacing: 0.08em; }
+.semester-copy strong { display: block; margin-top: 4px; color: var(--navy); font-size: 13px; }
+.semester-copy small { display: block; margin-top: 4px; color: var(--faint); font-size: 9px; }
+.semester-controls { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+.semester-controls .select-field select { min-width: 210px; }
+.semester-toggle { white-space: nowrap; }
+.filter-bar { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
+.search-field { flex: 1; max-width: 420px; }
+.search-field input, .select-field select, .field input, .field select {
+  width: 100%;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  outline: none;
+  color: var(--ink);
+  background: white;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.search-field input { padding: 0 14px 0 39px; background-image: radial-gradient(circle, transparent 50%, transparent 51%); }
+.search-field { position: relative; }
+.search-field::before { content: "⌕"; position: absolute; z-index: 1; top: 9px; left: 14px; color: var(--faint); font-size: 19px; }
+.select-field select { min-width: 155px; padding: 0 34px 0 12px; }
+.search-field input:focus, .select-field select:focus, .field input:focus, .field select:focus { border-color: #8aa5f4; box-shadow: 0 0 0 3px rgba(49, 94, 231, 0.09); }
+.result-count { margin-left: auto; color: var(--faint); font-size: 11px; }
+
+.table-panel { overflow: hidden; }
+.table-scroll { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.data-table th { padding: 14px 16px; color: var(--faint); background: #fafbfc; font-size: 9px; font-weight: 800; letter-spacing: 0.07em; text-align: left; white-space: nowrap; }
+.data-table td { padding: 14px 16px; border-top: 1px solid #edf0f5; color: #4f5b72; vertical-align: middle; }
+.data-table td:first-child { min-width: 190px; color: var(--ink); font-weight: 650; }
+.data-table td small { display: block; margin-top: 3px; color: var(--faint); font-weight: 400; }
+.data-table .score { color: var(--blue); font-size: 14px; font-weight: 800; }
+.detail-text { min-width: 170px; color: var(--faint); font-size: 9px; line-height: 1.5; }
+
+.empty-state { padding: 42px 18px; color: var(--faint); font-size: 11px; text-align: center; }
+.empty-state.compact { padding: 22px 8px; }
+
+.weighted-panel { margin-top: 17px; padding: 23px; }
+.weighted-panel .panel-header { align-items: center; margin-bottom: 0; }
+.weighted-result:not(:empty) { margin-top: 18px; }
+.weighted-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.weighted-summary span { padding: 7px 10px; border-radius: 8px; color: #445069; background: #f3f5f9; font-size: 10px; }
+.weighted-table { max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: 11px; }
+
+.notification-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+.notification-summary > div { padding: 17px 20px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.notification-summary span { color: var(--muted); font-size: 10px; }
+.notification-summary strong { display: block; margin-top: 6px; font-size: 21px; }
+.notification-list { padding: 6px 20px; }
+.notification-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 13px; padding: 17px 0; border-top: 1px solid #edf0f5; }
+.notification-item:first-child { border-top: 0; }
+.notification-marker { width: 8px; height: 8px; margin-top: 4px; border-radius: 50%; background: var(--amber); }
+.notification-item.is-sent .notification-marker { background: var(--green); }
+.notification-copy b { display: block; font-size: 12px; }
+.notification-copy p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+.notification-copy small { display: block; margin-top: 6px; color: var(--red); font-size: 9px; }
+.notification-time { color: var(--faint); font-size: 9px; white-space: nowrap; }
+.status-badge { display: inline-block; margin-left: 7px; padding: 3px 6px; border-radius: 99px; color: var(--amber); background: var(--amber-soft); font-size: 8px; vertical-align: 1px; }
+.status-badge.sent { color: var(--green); background: var(--green-soft); }
+
+.log-panel { overflow: hidden; border: 1px solid #263049; border-radius: var(--radius-md); background: #111827; box-shadow: 0 14px 38px rgba(15, 23, 42, 0.15); }
+.log-toolbar { display: flex; align-items: center; gap: 12px; height: 45px; padding: 0 16px; border-bottom: 1px solid #263149; color: #8e9ab1; background: #172033; font-size: 10px; }
+.log-toolbar > span { display: flex; gap: 5px; }
+.log-toolbar i { display: block; width: 8px; height: 8px; border-radius: 50%; background: #e16c76; }
+.log-toolbar i:nth-child(2) { background: #e5aa51; }
+.log-toolbar i:nth-child(3) { background: #4cba94; }
+.log-toolbar b { color: #c5cede; font-weight: 600; }
+.log-toolbar small { margin-left: auto; }
+.log-lines { height: min(650px, calc(100vh - 230px)); min-height: 360px; overflow: auto; padding: 17px 18px; color: #aebbd1; font-family: "Cascadia Code", Consolas, monospace; font-size: 10px; line-height: 1.75; }
+.log-line { display: grid; grid-template-columns: 74px 64px 1fr; gap: 8px; }
+.log-time { color: #64748b; }
+.log-tag { color: #6e94ff; font-weight: 700; }
+.log-line.is-error .log-tag, .log-line.is-error .log-message { color: #ef8d98; }
+.log-line.is-success .log-tag { color: #5dd2ae; }
+.log-empty { display: grid; height: 100%; place-items: center; color: #657089; }
+
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; }
+.settings-card { padding: 23px; }
+.settings-card-wide { grid-column: 1 / -1; }
+.setup-guide { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 17px; padding: 19px 21px; border: 1px solid #d9e2f2; border-radius: var(--radius-md); background: linear-gradient(135deg, #f7f9ff, #fff); }
+.setup-guide.is-complete { border-color: #cce9df; background: linear-gradient(135deg, #f3fbf8, #fff); }
+.setup-guide-copy { min-width: 210px; }
+.setup-guide-copy > span { display: block; color: var(--blue); font-size: 9px; font-weight: 750; letter-spacing: 0.08em; }
+.setup-guide-copy > strong { display: block; margin-top: 5px; font-size: 14px; }
+.setup-guide-copy > small { display: block; margin-top: 5px; color: var(--faint); font-size: 9px; line-height: 1.5; }
+.setup-steps { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 9px; flex: 1; }
+.setup-step { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 58px; padding: 10px 12px; border: 1px solid #e4e8f0; border-radius: 11px; background: rgba(255, 255, 255, 0.86); }
+.setup-step > i { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 50%; color: #6d7890; background: #edf0f6; font-size: 10px; font-style: normal; font-weight: 750; }
+.setup-step b { display: block; font-size: 10px; }
+.setup-step small { display: block; margin-top: 3px; color: var(--faint); font-size: 8px; }
+.setup-step em { color: var(--amber); font-size: 8px; font-style: normal; font-weight: 700; }
+.setup-step.is-ready > i { color: var(--green); background: var(--green-soft); }
+.setup-step.is-ready em { color: var(--green); }
+.settings-title { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.settings-title .metric-icon { width: 34px; height: 34px; }
+.field { display: block; margin-top: 14px; }
+.field > span { display: flex; justify-content: space-between; margin-bottom: 7px; color: #536078; font-size: 10px; font-weight: 650; }
+.field em { color: var(--green); font-size: 9px; font-style: normal; font-weight: 600; }
+.field em.is-missing { color: var(--amber); }
+.required-mark { margin-left: auto; color: var(--red); font-size: 8px; font-weight: 650; }
+.required-mark + em { margin-left: 8px; }
+.field input, .field select { height: 40px; padding: 0 12px; font-size: 11px; }
+.field input::placeholder { color: #b2bac8; }
+.toggle-field { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 18px; cursor: pointer; }
+.toggle-field span b { display: block; color: #536078; font-size: 10px; }
+.toggle-field span small { display: block; margin-top: 3px; color: var(--faint); font-size: 9px; }
+.toggle-field input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle-field i { position: relative; width: 38px; height: 22px; border-radius: 99px; background: #d8dde7; transition: 160ms; }
+.toggle-field i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: 0 2px 5px rgba(20, 31, 52, 0.18); transition: 160ms; }
+.toggle-field input:checked + i { background: var(--blue); }
+.toggle-field input:checked + i::after { transform: translateX(16px); }
+.toggle-field input:focus-visible + i { outline: 3px solid rgba(49, 94, 231, 0.2); outline-offset: 2px; }
+.settings-note { margin-top: 18px; padding: 12px; border-radius: 10px; color: #76633f; background: #fff8eb; font-size: 9px; line-height: 1.6; }
+.settings-details { margin-top: 18px; border-top: 1px solid #edf0f5; }
+.settings-details summary { padding-top: 14px; color: var(--blue); font-size: 9px; font-weight: 700; cursor: pointer; }
+.settings-details-grid { margin-top: 0; }
+.advanced-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
+.settings-footer { position: sticky; bottom: 16px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 18px; padding: 16px 20px; border: 1px solid #dce3f0; border-radius: 14px; background: rgba(255, 255, 255, 0.93); box-shadow: 0 10px 28px rgba(23, 34, 61, 0.1); backdrop-filter: blur(12px); }
+.settings-footer strong { display: block; font-size: 11px; }
+.settings-footer span { display: block; margin-top: 3px; color: var(--faint); font-size: 9px; }
+
+.toast-region { position: fixed; z-index: 100; right: 20px; bottom: 20px; display: grid; width: min(360px, calc(100vw - 40px)); gap: 9px; }
+.toast { display: grid; grid-template-columns: 8px 1fr auto; align-items: start; gap: 11px; padding: 14px 15px; border: 1px solid var(--line); border-radius: 13px; background: white; box-shadow: 0 16px 42px rgba(20, 31, 54, 0.16); animation: toast-in 180ms ease-out; }
+.toast::before { content: ""; width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: var(--green); }
+.toast.is-error::before { background: var(--red); }
+.toast b { display: block; font-size: 11px; }
+.toast span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.toast button { padding: 0; border: 0; color: var(--faint); background: transparent; cursor: pointer; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+.mobile-backdrop { position: fixed; inset: 0; z-index: 25; background: rgba(12, 20, 36, 0.42); backdrop-filter: blur(2px); }
+
+@media (max-width: 1100px) {
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .quick-actions { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .panel-wide { grid-column: auto; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .settings-card-wide { grid-column: auto; }
+  .setup-guide { align-items: stretch; flex-direction: column; }
+}
+
+@media (max-width: 780px) {
+  .sidebar { transform: translateX(-105%); transition: transform 180ms ease; }
+  .sidebar.is-open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .menu-button { display: block; }
+  .topbar { min-height: 68px; padding: 10px 16px; }
+  .topbar-status { padding: 8px 10px; }
+  .topbar-status span:last-child { display: none; }
+  .content { padding: 20px 16px 36px; }
+  .hero-card { align-items: flex-start; flex-direction: column; padding: 27px 24px; }
+  .hero-actions { width: 100%; }
+  .hero-actions .button { flex: 1; }
+  .hero-orbit { opacity: 0.6; }
+  .metric-grid { gap: 10px; }
+  .metric-card { min-height: 115px; padding: 16px; }
+  .metric-card > strong { font-size: 22px; }
+  .dashboard-grid { gap: 12px; }
+  .compact-grade { grid-template-columns: minmax(120px, 1fr) 74px 48px; }
+  .compact-grade > span:nth-of-type(1) { display: none; }
+  .quick-actions { grid-template-columns: 1fr 1fr; }
+  .section-heading { align-items: flex-start; flex-direction: column; }
+  .section-heading .button, .section-heading .button-row { width: 100%; }
+  .section-heading .button-row .button { flex: 1; }
+  .filter-bar { flex-wrap: wrap; }
+  .semester-browser { align-items: stretch; flex-direction: column; }
+  .semester-controls { justify-content: stretch; }
+  .semester-controls .select-field, .semester-controls .select-field select { width: 100%; }
+  .semester-controls .semester-toggle { width: 100%; text-align: left; }
+  .semester-controls .button { flex: 1; }
+  .search-field { max-width: none; flex-basis: 100%; }
+  .result-count { margin-left: 0; }
+  .notification-summary { gap: 9px; }
+  .notification-summary > div { padding: 14px; }
+  .notification-item { grid-template-columns: 9px minmax(0, 1fr); }
+  .notification-time { grid-column: 2; }
+  .setup-steps, .advanced-settings-grid { grid-template-columns: 1fr; }
+  .advanced-settings-grid > span { display: none; }
+  .settings-footer { position: static; align-items: stretch; flex-direction: column; }
+  .settings-footer .button-row, .settings-footer .button { width: 100%; }
+  .log-line { grid-template-columns: 62px 56px 1fr; }
+}
+
+@media (max-width: 500px) {
+  .page-heading .eyebrow { display: none; }
+  .page-heading h1 { font-size: 17px; }
+  .hero-copy h2 { font-size: 25px; }
+  .hero-meta { display: grid; gap: 7px; }
+  .metric-grid { grid-template-columns: 1fr 1fr; }
+  .metric-label { gap: 6px; font-size: 10px; }
+  .quick-actions { grid-template-columns: 1fr; }
+  .notification-summary { grid-template-columns: 1fr; }
+  .notification-summary > div { display: flex; align-items: center; justify-content: space-between; }
+  .notification-summary strong { margin: 0; }
+  .settings-card, .panel-large, .panel-wide, .dashboard-grid > .panel:not(.panel-large, .panel-wide), .weighted-panel { padding: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+.file-launcher {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(55, 118, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 80%, rgba(24, 181, 140, 0.14), transparent 30%),
+    #f4f6fa;
+}
+
+.launcher-card {
+  width: min(100%, 520px);
+  padding: 48px 44px;
+  text-align: center;
+  border: 1px solid rgba(23, 44, 79, 0.1);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 30px 80px rgba(28, 47, 78, 0.14);
+}
+
+.launcher-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 34px;
+  color: #18345f;
+  font-weight: 750;
+}
+
+.launcher-brand span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 11px;
+  color: #fff;
+  background: #1c4fa3;
+}
+
+.launcher-spinner {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 28px;
+  border: 4px solid #dce6f6;
+  border-top-color: #2d67c7;
+  border-radius: 50%;
+  animation: launcher-spin 0.85s linear infinite;
+}
+
+.launcher-kicker {
+  margin: 0 0 9px;
+  color: #2d67c7;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.launcher-card h1 {
+  margin: 0;
+  color: #142b4f;
+  font-size: clamp(26px, 6vw, 36px);
+}
+
+.launcher-card > p:not(.launcher-kicker) {
+  min-height: 48px;
+  margin: 16px 0 24px;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.launcher-card small {
+  display: block;
+  margin-top: 18px;
+  color: #8a96a8;
+  line-height: 1.6;
+}
+
+@keyframes launcher-spin {
+  to { transform: rotate(360deg); }
+}
+
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">T</div>
+        <div>
+          <strong>TJU Auto Grade</strong>
+          <span>本机成绩控制台</span>
+        </div>
+      </div>
+
+      <nav class="nav-list" aria-label="主导航">
+        <button class="nav-item is-active" type="button" data-view="overview">
+          <span class="nav-icon" aria-hidden="true">⌂</span><span>运行概览</span>
+        </button>
+        <button class="nav-item" type="button" data-view="grades">
+          <span class="nav-icon" aria-hidden="true">成</span><span>成绩中心</span>
+        </button>
+        <button class="nav-item" type="button" data-view="notifications">
+          <span class="nav-icon" aria-hidden="true">信</span><span>通知记录</span>
+          <span class="nav-count" id="nav-pending-count" hidden>0</span>
+        </button>
+        <button class="nav-item" type="button" data-view="logs">
+          <span class="nav-icon" aria-hidden="true">记</span><span>运行日志</span>
+        </button>
+        <button class="nav-item" type="button" data-view="settings">
+          <span class="nav-icon" aria-hidden="true">设</span><span>系统设置</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-health">
+        <div class="health-row">
+          <span class="status-dot" id="sidebar-status-dot"></span>
+          <span id="sidebar-status-text">正在连接</span>
+        </div>
+        <p>所有数据只保存在这台电脑</p>
+      </div>
+    </aside>
+
+    <main class="main" id="main-content">
+      <header class="topbar">
+        <button class="menu-button" id="menu-button" type="button" aria-label="打开导航" aria-expanded="false">☰</button>
+        <div class="page-heading">
+          <span class="eyebrow">天津大学 EAMS</span>
+          <h1 id="page-title">运行概览</h1>
+        </div>
+        <div class="topbar-status" aria-live="polite">
+          <span class="status-dot" id="topbar-status-dot"></span>
+          <span id="topbar-status-text">正在连接</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="view is-active" data-view-panel="overview" aria-labelledby="overview-heading">
+          <div class="hero-card">
+            <div class="hero-copy">
+              <span class="hero-kicker" id="hero-kicker">监控服务</span>
+              <h2 id="overview-heading">正在读取运行状态</h2>
+              <p id="hero-description">控制台已打开，正在与本机监控服务建立连接。</p>
+              <div class="hero-meta">
+                <span id="hero-last-check">最近检查：暂无</span>
+                <span id="hero-next-step">请稍候</span>
+              </div>
+            </div>
+            <div class="hero-actions">
+              <button class="button button-primary" type="button" data-action="check">立即查分</button>
+              <button class="button button-secondary" type="button" data-action="restart">重启监控</button>
+              <button class="button button-secondary" type="button" data-action="stop">停止监控</button>
+            </div>
+            <div class="hero-orbit" aria-hidden="true"><span></span></div>
+          </div>
+
+          <div class="metric-grid" aria-label="监控指标">
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon blue">课</span>已抓课程</div>
+              <strong id="metric-grades">—</strong>
+              <small id="metric-grades-note">等待首次抓取</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon green">时</span>运行时间</div>
+              <strong id="metric-uptime">—</strong>
+              <small>控制台持续在线</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon amber">信</span>待发通知</div>
+              <strong id="metric-pending">—</strong>
+              <small id="metric-pending-note">自动重试已启用</small>
+            </article>
+            <article class="metric-card">
+              <div class="metric-label"><span class="metric-icon violet">检</span>连续失败</div>
+              <strong id="metric-failures">—</strong>
+              <small id="metric-failures-note">暂无异常</small>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel panel-large">
+              <div class="panel-header">
+                <div>
+                  <span class="panel-kicker">最近成绩</span>
+                  <h3>最新课程快照</h3>
+                </div>
+                <button class="text-button" type="button" data-go-view="grades">查看全部 →</button>
+              </div>
+              <div class="compact-grade-list" id="recent-grades">
+                <div class="empty-state compact">尚未读取成绩快照</div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div>
+                  <span class="panel-kicker">服务能力</span>
+                  <h3>环境就绪情况</h3>
+                </div>
+              </div>
+              <div class="readiness-list" id="readiness-list">
+                <div class="readiness-row"><span>监控浏览器</span><b>检测中</b></div>
+                <div class="readiness-row"><span>邮件通知</span><b>检测中</b></div>
+                <div class="readiness-row"><span>邮件指令</span><b>检测中</b></div>
+                <div class="readiness-row"><span>AI 验证码</span><b>检测中</b></div>
+              </div>
+            </article>
+
+            <article class="panel panel-wide">
+              <div class="panel-header">
+                <div>
+                  <span class="panel-kicker">快捷操作</span>
+                  <h3>常用控制</h3>
+                </div>
+              </div>
+              <div class="quick-actions">
+                <button class="quick-action" type="button" data-action="check">
+                  <span class="quick-icon blue">↻</span><span><b>立即查分</b><small>不等待下个周期</small></span>
+                </button>
+                <button class="quick-action" type="button" data-action="retry-notifications">
+                  <span class="quick-icon amber">信</span><span><b>重试通知</b><small>处理待发邮件</small></span>
+                </button>
+                <button class="quick-action" type="button" data-action="test-email">
+                  <span class="quick-icon green">✓</span><span><b>测试邮箱</b><small>发送一封测试邮件</small></span>
+                </button>
+                <button class="quick-action" type="button" data-go-view="logs">
+                  <span class="quick-icon violet">记</span><span><b>查看日志</b><small>定位最近异常</small></span>
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view-panel="grades" aria-labelledby="grades-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">成绩中心</span><h2 id="grades-heading">全部课程成绩</h2><p>从本机最新快照读取，不会额外访问教务系统。</p></div>
+            <button class="button button-primary" type="button" data-action="check">立即刷新成绩</button>
+          </div>
+
+          <div class="semester-browser">
+            <div class="semester-copy"><span>成绩范围</span><strong id="grade-source-label">监控成绩快照</strong><small>历史查询只临时展示，不会覆盖监控数据或触发通知。</small></div>
+            <div class="semester-controls">
+              <label class="select-field"><span class="sr-only">选择要查询的学期</span><select id="semester-query-select"><option value="">正在读取可用学期…</option></select></label>
+              <button class="text-button semester-toggle" id="toggle-older-semesters" type="button" aria-expanded="false" hidden>显示更早学期</button>
+              <button class="button button-primary" id="query-semester" type="button">查看所选学期</button>
+              <button class="button button-secondary" id="show-current-grades" type="button" hidden>返回监控快照</button>
+            </div>
+          </div>
+
+          <div class="filter-bar">
+            <label class="search-field"><span class="sr-only">搜索课程</span><input id="grade-search" type="search" placeholder="搜索课程名称或代码"></label>
+            <label class="select-field"><span class="sr-only">筛选学期</span><select id="semester-filter"><option value="">全部学期</option></select></label>
+            <span class="result-count" id="grade-result-count">0 门课程</span>
+          </div>
+
+          <article class="panel table-panel">
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><th>课程</th><th>学期</th><th>教学班</th><th>学分</th><th>总评</th><th>绩点</th><th>明细</th></tr></thead>
+                <tbody id="grades-table-body"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="grades-empty" hidden>暂时没有可显示的成绩</div>
+          </article>
+
+          <article class="panel weighted-panel">
+            <div class="panel-header">
+              <div><span class="panel-kicker">即时查询</span><h3>总加权与累计成绩</h3><p>点击后会打开 EAMS 总加权页面读取最新数据。</p></div>
+              <button class="button button-secondary" type="button" data-action="weighted">查询总加权</button>
+            </div>
+            <div class="weighted-result" id="weighted-result"><div class="empty-state compact">尚未查询</div></div>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="notifications" aria-labelledby="notifications-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">通知中心</span><h2 id="notifications-heading">邮件发送记录</h2><p>成绩通知先写入本机队列，失败后自动退避重试。</p></div>
+            <div class="button-row"><button class="button button-secondary" type="button" data-action="test-email">发送测试邮件</button><button class="button button-primary" type="button" data-action="retry-notifications">立即重试</button></div>
+          </div>
+          <div class="notification-summary">
+            <div><span>待发送</span><strong id="notification-pending">0</strong></div>
+            <div><span>重试中</span><strong id="notification-retrying">0</strong></div>
+            <div><span>已发送</span><strong id="notification-sent">0</strong></div>
+          </div>
+          <article class="panel">
+            <div class="notification-list" id="notification-list"><div class="empty-state">暂无通知记录</div></div>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="logs" aria-labelledby="logs-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">运行记录</span><h2 id="logs-heading">实时日志</h2><p>显示最近 200 条本机日志，页面每五秒自动刷新。</p></div>
+            <button class="button button-secondary" type="button" id="refresh-logs">刷新日志</button>
+          </div>
+          <article class="log-panel">
+            <div class="log-toolbar"><span><i></i><i></i><i></i></span><b>eams_monitor.log</b><small id="log-updated">尚未刷新</small></div>
+            <div class="log-lines" id="log-lines" role="log" aria-live="polite"><div class="log-empty">暂无日志</div></div>
+          </article>
+        </section>
+
+        <section class="view" data-view-panel="settings" aria-labelledby="settings-heading" hidden>
+          <div class="section-heading">
+            <div><span class="eyebrow">系统设置</span><h2 id="settings-heading">监控与通知配置</h2><p>保存后会自动重启监控；敏感字段留空表示保持原值。</p></div>
+            <div class="button-row">
+              <button class="button button-secondary" id="import-settings" type="button">导入配置</button>
+              <button class="button button-secondary" id="export-settings" type="button">导出配置</button>
+              <input id="settings-import-file" type="file" accept="application/json,.json" hidden>
+            </div>
+          </div>
+          <article class="setup-guide" id="setup-guide">
+            <div class="setup-guide-copy"><span>首次使用引导</span><strong id="setup-guide-title">正在检查配置…</strong><small id="setup-guide-description">配置只保存在这台电脑，不会上传到控制台以外的位置。</small></div>
+            <div class="setup-steps">
+              <div class="setup-step" data-setup-step="eams"><i>1</i><span><b>教务登录</b><small>学号和密码，必填</small></span><em>待检查</em></div>
+              <div class="setup-step" data-setup-step="mail"><i>2</i><span><b>邮件通知</b><small>发件账号和授权码，推荐</small></span><em>待检查</em></div>
+              <div class="setup-step" data-setup-step="aiLogin"><i>3</i><span><b>自动验证码</b><small>千问 API Key，可选</small></span><em>待检查</em></div>
+            </div>
+          </article>
+          <form id="settings-form">
+            <div class="settings-grid">
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon blue">教</span><div><h3>教务登录</h3><p>用于 EAMS 登录和验证码识别</p></div></div>
+                <label class="field"><span>学号 <b class="required-mark">必填</b></span><input name="EAMS_USERNAME" autocomplete="username" placeholder="请输入学号"></label>
+                <label class="field"><span>教务密码 <b class="required-mark">必填</b> <em id="configured-EAMS_PASSWORD"></em></span><input name="EAMS_PASSWORD" type="password" autocomplete="new-password" placeholder="已配置时留空不修改"></label>
+                <label class="field"><span>千问 API Key <em id="configured-DASHSCOPE_API_KEY"></em></span><input name="DASHSCOPE_API_KEY" type="password" autocomplete="off" placeholder="可选，留空不修改"></label>
+                <label class="field"><span>验证码识别模型</span><input name="VISION_MODEL" list="vision-model-options" placeholder="qwen3.5-ocr"><datalist id="vision-model-options"><option value="qwen3.5-ocr"><option value="qwen-vl-ocr-latest"><option value="qwen3-vl-flash"></datalist></label>
+              </article>
+
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon green">信</span><div><h3>邮件通知</h3><p>发送成绩变化与接收查询指令</p></div></div>
+                <label class="field"><span>QQ 发件邮箱</span><input name="QQ_EMAIL" type="email" autocomplete="email" placeholder="example@qq.com"></label>
+                <label class="field"><span>邮箱授权码 <em id="configured-QQ_SMTP_CODE"></em></span><input name="QQ_SMTP_CODE" type="password" autocomplete="new-password" placeholder="留空不修改"></label>
+                <label class="field"><span>通知接收邮箱</span><input name="NOTIFY_EMAIL" type="email" placeholder="默认发送给自己"></label>
+                <label class="field"><span>指令授权邮箱</span><input name="COMMAND_EMAIL" type="email" placeholder="默认使用通知邮箱"></label>
+                <label class="field"><span>邮件指令口令 <em id="configured-COMMAND_TOKEN"></em></span><input name="COMMAND_TOKEN" type="password" autocomplete="off" placeholder="建议设置，留空不修改"></label>
+              </article>
+
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon amber">时</span><div><h3>检查频率</h3><p>控制成绩、邮件和通知队列轮询</p></div></div>
+                <label class="field"><span>查分间隔（分钟）</span><input name="CHECK_INTERVAL_MINUTES" type="number" min="1" max="1440"></label>
+                <label class="field"><span>重新登录等待（分钟）</span><input name="RELOGIN_TIMEOUT_MINUTES" type="number" min="1" max="120"></label>
+                <label class="field"><span>邮件指令间隔（秒）</span><input name="IMAP_INTERVAL_SECONDS" type="number" min="15" max="3600"></label>
+                <label class="field"><span>IMAP 连接超时（秒）</span><input name="IMAP_SOCKET_TIMEOUT_SECONDS" type="number" min="60" max="1800"></label>
+                <label class="toggle-field"><span><b>启用邮件指令</b><small>允许从授权邮箱查询成绩</small></span><input name="IMAP_ENABLED" type="checkbox"><i aria-hidden="true"></i></label>
+                <details class="settings-details">
+                  <summary>高级重试策略</summary>
+                  <label class="field"><span>队列检查间隔（秒）</span><input name="OUTBOX_POLL_INTERVAL_SECONDS" type="number" min="10" max="3600"></label>
+                  <label class="field"><span>首次重试等待（秒）</span><input name="OUTBOX_RETRY_BASE_SECONDS" type="number" min="10" max="3600"></label>
+                  <label class="field"><span>最长重试等待（秒）</span><input name="OUTBOX_RETRY_MAX_SECONDS" type="number" min="60" max="86400"></label>
+                  <label class="field"><span>已发送记录保留（天）</span><input name="OUTBOX_RETENTION_DAYS" type="number" min="1" max="365"></label>
+                </details>
+              </article>
+
+              <article class="panel settings-card">
+                <div class="settings-title"><span class="metric-icon violet">览</span><div><h3>浏览器模式</h3><p>决定 EAMS 浏览器如何运行</p></div></div>
+                <label class="field"><span>浏览器通道</span><select name="BROWSER_CHANNEL"><option value="msedge">Microsoft Edge</option><option value="chromium">Playwright Chromium</option><option value="chrome">Google Chrome</option></select></label>
+                <label class="toggle-field"><span><b>无头模式</b><small>后台运行，但无法手动处理验证码</small></span><input name="HEADLESS" type="checkbox"><i aria-hidden="true"></i></label>
+                <div class="settings-note">推荐保持 Edge 可见模式。首次登录或验证码识别失败时，可以直接在浏览器窗口中操作。</div>
+              </article>
+
+              <article class="panel settings-card settings-card-wide">
+                <div class="settings-title"><span class="metric-icon green">邮</span><div><h3>通用邮箱服务器</h3><p>QQ 邮箱无需修改；使用其他邮箱时展开配置 SMTP 与 IMAP</p></div></div>
+                <details class="settings-details settings-details-grid">
+                  <summary>配置非 QQ 邮箱</summary>
+                  <div class="advanced-settings-grid">
+                    <label class="field"><span>SMTP 主机</span><input name="SMTP_HOST" placeholder="smtp.qq.com"></label>
+                    <label class="field"><span>SMTP 端口</span><input name="SMTP_PORT" type="number" min="1" max="65535"></label>
+                    <label class="field"><span>SMTP 用户名</span><input name="SMTP_USER" autocomplete="username" placeholder="通常是完整邮箱地址"></label>
+                    <label class="field"><span>SMTP 密码/授权码 <em id="configured-SMTP_PASS"></em></span><input name="SMTP_PASS" type="password" autocomplete="new-password" placeholder="留空不修改"></label>
+                    <label class="toggle-field"><span><b>SMTP SSL/TLS</b><small>465 端口通常需要开启</small></span><input name="SMTP_SECURE" type="checkbox"><i aria-hidden="true"></i></label>
+                    <span></span>
+                    <label class="field"><span>IMAP 主机</span><input name="IMAP_HOST" placeholder="imap.qq.com"></label>
+                    <label class="field"><span>IMAP 端口</span><input name="IMAP_PORT" type="number" min="1" max="65535"></label>
+                    <label class="field"><span>IMAP 用户名</span><input name="IMAP_USER" autocomplete="username" placeholder="通常是完整邮箱地址"></label>
+                    <label class="field"><span>IMAP 密码/授权码 <em id="configured-IMAP_PASS"></em></span><input name="IMAP_PASS" type="password" autocomplete="new-password" placeholder="留空不修改"></label>
+                  </div>
+                </details>
+              </article>
+            </div>
+            <div class="settings-footer">
+              <div><strong>保存会发生什么？</strong><span>配置写入本机 eams.env，然后安全重启监控浏览器。</span></div>
+              <div class="button-row"><button class="button button-secondary" type="button" data-action="test-email">测试邮箱</button><button class="button button-primary" type="submit">保存并启动监控</button></div>
+            </div>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="mobile-backdrop" id="mobile-backdrop" hidden></div>
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script nonce="__DASHBOARD_NONCE__">
+function startDashboardClient() {
+const token = document.querySelector('meta[name="dashboard-token"]').content;
+
+const state = {
+  status: null,
+  grades: [],
+  currentGrades: [],
+  semesters: [],
+  notifications: [],
+  logs: [],
+  settingsLoaded: false,
+  settingsConfigured: {},
+  supportedSettings: new Set(),
+  setup: null,
+  activeView: 'overview',
+  polling: false,
+  gradeMode: 'current',
+  semestersLoaded: false,
+  showOlderSemesters: false,
+  semestersUpdatedAt: 0,
+};
+
+const DEFAULT_SEMESTER_LIMIT = 8;
+const SEMESTER_REFRESH_INTERVAL = 6 * 60 * 60 * 1000;
+const SETTINGS_EXPORT_FORMAT = 'tju-auto-grade-settings';
+const SECRET_SETTING_NAMES = new Set([
+  'EAMS_PASSWORD', 'QQ_SMTP_CODE', 'DASHSCOPE_API_KEY', 'COMMAND_TOKEN', 'SMTP_PASS', 'IMAP_PASS',
+]);
+
+const viewTitles = {
+  overview: '运行概览',
+  grades: '成绩中心',
+  notifications: '通知记录',
+  logs: '运行日志',
+  settings: '系统设置',
+};
+
+const phaseLabels = {
+  stopped: '监控已停止',
+  stopping: '正在停止',
+  starting: '正在启动监控',
+  running: '监控运行正常',
+  error: '监控需要处理',
+};
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function api(path, options = {}) {
+  const request = {
+    method: options.method || 'GET',
+    headers: { Accept: 'application/json' },
+  };
+  if (request.method !== 'GET') {
+    request.headers['Content-Type'] = 'application/json';
+    request.headers['X-TJU-Dashboard-Token'] = token;
+    request.body = JSON.stringify(options.body || {});
+  }
+  const response = await fetch(path, request);
+  const payload = await response.json().catch(() => ({ ok: false, error: '服务返回内容无法读取' }));
+  if (!response.ok || !payload.ok) throw new Error(payload.error || `请求失败 (${response.status})`);
+  return payload.data;
+}
+
+function formatDate(value, fallback = '暂无') {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds)) return '—';
+  if (seconds < 60) return `${seconds} 秒`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours} 小时 ${minutes} 分`;
+}
+
+function showToast(title, message, isError = false) {
+  const region = document.getElementById('toast-region');
+  const toast = document.createElement('div');
+  toast.className = `toast${isError ? ' is-error' : ''}`;
+  const copy = document.createElement('div');
+  const heading = document.createElement('b');
+  heading.textContent = title;
+  const body = document.createElement('span');
+  body.textContent = message;
+  copy.append(heading, body);
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.setAttribute('aria-label', '关闭提示');
+  close.textContent = '×';
+  close.addEventListener('click', () => toast.remove());
+  toast.append(copy, close);
+  region.append(toast);
+  setTimeout(() => toast.remove(), 5200);
+}
+
+function setStatusDot(element, phase) {
+  element.className = 'status-dot';
+  if (phase === 'running') element.classList.add('is-running');
+  else if (phase === 'starting' || phase === 'stopping') element.classList.add('is-starting');
+  else if (phase === 'error') element.classList.add('is-error');
+}
+
+function switchView(view) {
+  if (!viewTitles[view]) return;
+  state.activeView = view;
+  document.querySelectorAll('[data-view-panel]').forEach(panel => {
+    const active = panel.dataset.viewPanel === view;
+    panel.hidden = !active;
+    panel.classList.toggle('is-active', active);
+  });
+  document.querySelectorAll('[data-view]').forEach(button => {
+    button.classList.toggle('is-active', button.dataset.view === view);
+  });
+  document.getElementById('page-title').textContent = viewTitles[view];
+  closeMobileMenu();
+  if (view === 'logs') loadLogs();
+  if (view === 'settings' && !state.settingsLoaded) loadSettings();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openMobileMenu() {
+  document.getElementById('sidebar').classList.add('is-open');
+  document.getElementById('mobile-backdrop').hidden = false;
+  document.getElementById('menu-button').setAttribute('aria-expanded', 'true');
+}
+
+function closeMobileMenu() {
+  document.getElementById('sidebar').classList.remove('is-open');
+  document.getElementById('mobile-backdrop').hidden = true;
+  document.getElementById('menu-button').setAttribute('aria-expanded', 'false');
+}
+
+function renderStatus() {
+  const payload = state.status;
+  if (!payload) return;
+  const phase = payload.phase || 'stopped';
+  const monitor = payload.monitor;
+  const monitorState = monitor?.state || {};
+  const needsSetup = payload.setup && !payload.setup.complete;
+  const label = needsSetup ? '等待首次配置' : phaseLabels[phase] || phase;
+
+  for (const id of ['sidebar-status-dot', 'topbar-status-dot']) {
+    setStatusDot(document.getElementById(id), phase);
+  }
+  document.getElementById('sidebar-status-text').textContent = label;
+  document.getElementById('topbar-status-text').textContent = label;
+
+  const hero = document.querySelector('.hero-card');
+  hero.className = `hero-card status-${phase}`;
+  document.getElementById('hero-kicker').textContent = phase === 'running' ? '实时监控已连接' : '监控服务';
+  document.getElementById('overview-heading').textContent = label;
+  let description = '控制台保持在线，你可以从这里启动监控。';
+  if (needsSetup) description = '请先在系统设置中填写学号和教务密码，保存后监控会自动启动。';
+  if (phase === 'starting') description = '正在打开 EAMS 并恢复登录。如果出现验证码，请在弹出的浏览器窗口中完成登录。';
+  if (phase === 'running') description = monitor?.sessionRecovering
+    ? 'EAMS 会话正在恢复，完成登录后会自动继续查分。'
+    : '成绩检查、通知队列和邮件指令都在后台运行，无需盯着终端。';
+  if (phase === 'error') description = payload.error || '监控启动失败，请查看日志或检查设置。';
+  if (phase === 'stopping') description = '正在安全关闭浏览器并保存本机状态。';
+  document.getElementById('hero-description').textContent = description;
+  document.getElementById('hero-last-check').textContent = `最近检查：${formatDate(monitorState.lastCheck)}`;
+  const resultText = {
+    change: '发现成绩更新', nochange: '成绩无变化', fail: '最近检查失败', cas: '等待重新登录',
+  }[monitorState.lastResult] || (phase === 'running' ? '等待下次检查' : '监控未就绪');
+  document.getElementById('hero-next-step').textContent = resultText;
+
+  document.getElementById('metric-grades').textContent = monitorState.gradeCount ?? state.grades.length ?? '—';
+  document.getElementById('metric-grades-note').textContent = monitorState.lastChange
+    ? `最近变化 ${monitorState.lastChange}` : '来自最新本机快照';
+  document.getElementById('metric-uptime').textContent = formatDuration(payload.dashboard?.uptimeSeconds);
+  document.getElementById('metric-pending').textContent = monitorState.outboxPending ?? 0;
+  document.getElementById('metric-pending-note').textContent = monitorState.outboxRetrying
+    ? `${monitorState.outboxRetrying} 条正在重试` : '自动重试已启用';
+  document.getElementById('metric-failures').textContent = monitorState.failCount ?? 0;
+  document.getElementById('metric-failures-note').textContent = monitorState.failCount ? '建议查看运行日志' : '暂无连续异常';
+
+  const pending = Number(monitorState.outboxPending || 0);
+  const navCount = document.getElementById('nav-pending-count');
+  navCount.textContent = pending;
+  navCount.hidden = pending === 0;
+
+  const capabilities = payload.capabilities || {};
+  state.setup = payload.setup || state.setup;
+  renderSetupGuide(state.setup);
+  const readiness = [
+    ['监控浏览器', phase === 'running' ? '已连接' : phase === 'starting' ? '启动中' : '未连接', phase === 'running'],
+    ['邮件通知', capabilities.mail ? '已配置' : '未配置', capabilities.mail],
+    ['邮件指令', capabilities.imap ? '已启用' : '未启用', capabilities.imap],
+    ['AI 验证码', capabilities.aiLogin ? '已配置' : '手动登录', capabilities.aiLogin],
+  ];
+  document.getElementById('readiness-list').innerHTML = readiness.map(([name, value, ready]) =>
+    `<div class="readiness-row"><span>${name}</span><b class="${ready ? 'is-ready' : 'is-warning'}">${value}</b></div>`
+  ).join('');
+
+  document.querySelectorAll('[data-action="check"], [data-action="weighted"], [data-action="retry-notifications"]').forEach(button => {
+    button.disabled = phase !== 'running';
+  });
+  document.getElementById('query-semester').disabled = phase !== 'running' || state.semesters.length === 0;
+  document.querySelectorAll('[data-action="stop"]').forEach(button => {
+    button.disabled = phase === 'stopped' || phase === 'stopping';
+  });
+  document.querySelectorAll('[data-action="restart"]').forEach(button => {
+    button.textContent = phase === 'stopped' || phase === 'error' ? '启动监控' : '重启监控';
+    button.disabled = Boolean(needsSetup);
+  });
+  document.querySelectorAll('[data-action="test-email"]').forEach(button => {
+    button.disabled = !capabilities.mail;
+  });
+}
+
+function renderSetupGuide(setup) {
+  if (!setup) return;
+  const guide = document.getElementById('setup-guide');
+  if (!guide) return;
+  guide.classList.toggle('is-complete', setup.complete);
+  document.getElementById('setup-guide-title').textContent = setup.complete
+    ? '基础配置已完成，可以正常启动监控'
+    : '完成两个必填项即可开始使用';
+  document.getElementById('setup-guide-description').textContent = setup.complete
+    ? '配置已保存在本机 eams.env；可导出非敏感参数供其他电脑复用。'
+    : '当前只启动本机控制台，不会提前打开教务浏览器。';
+  for (const [name, step] of Object.entries(setup.steps || {})) {
+    const element = document.querySelector(`[data-setup-step="${name}"]`);
+    if (!element) continue;
+    element.classList.toggle('is-ready', step.ready);
+    element.querySelector('em').textContent = step.ready ? '已完成' : step.required ? '需要配置' : '可选';
+  }
+}
+
+function gradeIdentity(grade) {
+  return [grade['学年学期'], grade['课程代码'], grade['课程名称'], grade['教学班'], grade['教学班号']].join('|');
+}
+
+function sortedGrades() {
+  return [...state.grades].sort((left, right) => {
+    const semester = String(right['学年学期'] || '').localeCompare(String(left['学年学期'] || ''), 'zh-CN');
+    if (semester !== 0) return semester;
+    return String(left['课程名称'] || '').localeCompare(String(right['课程名称'] || ''), 'zh-CN');
+  });
+}
+
+function renderRecentGrades() {
+  const container = document.getElementById('recent-grades');
+  const grades = sortedGrades().slice(0, 5);
+  if (grades.length === 0) {
+    container.innerHTML = '<div class="empty-state compact">尚未读取成绩快照</div>';
+    return;
+  }
+  container.innerHTML = grades.map(grade => `
+    <div class="compact-grade" data-grade-id="${escapeHtml(gradeIdentity(grade))}">
+      <div class="compact-grade-name"><b>${escapeHtml(grade['课程名称'] || '未知课程')}</b><small>${escapeHtml(grade['课程代码'] || '无课程代码')}</small></div>
+      <span>${escapeHtml(grade['学年学期'] || '-')}</span>
+      <span>${escapeHtml(grade['学分'] || '-')} 学分</span>
+      <span class="score-pill">${escapeHtml(grade['总评成绩'] ?? '-')}</span>
+    </div>`).join('');
+}
+
+function updateSemesterOptions() {
+  const select = document.getElementById('semester-filter');
+  const current = select.value;
+  const semesters = [...new Set(state.grades.map(grade => grade['学年学期']).filter(Boolean))]
+    .sort((a, b) => String(b).localeCompare(String(a), 'zh-CN'));
+  select.innerHTML = '<option value="">全部学期</option>' + semesters
+    .map(semester => `<option value="${escapeHtml(semester)}">${escapeHtml(semester)}</option>`).join('');
+  if (semesters.includes(current)) select.value = current;
+}
+
+function renderGrades() {
+  const query = document.getElementById('grade-search').value.trim().toLowerCase();
+  const semester = document.getElementById('semester-filter').value;
+  const grades = sortedGrades().filter(grade => {
+    const matchesSemester = !semester || grade['学年学期'] === semester;
+    const haystack = `${grade['课程名称'] || ''} ${grade['课程代码'] || ''}`.toLowerCase();
+    return matchesSemester && (!query || haystack.includes(query));
+  });
+  document.getElementById('grade-result-count').textContent = `${grades.length} 门课程`;
+  document.getElementById('grades-empty').hidden = grades.length > 0;
+  document.getElementById('grades-table-body').innerHTML = grades.map(grade => {
+    const details = [
+      ['平时', grade['平时成绩']], ['实验', grade['实验成绩']], ['期末', grade['期末成绩']],
+    ].filter(([, value]) => value !== undefined && value !== '').map(([name, value]) => `${name} ${value}`).join(' · ');
+    return `<tr>
+      <td>${escapeHtml(grade['课程名称'] || '未知课程')}<small>${escapeHtml(grade['课程代码'] || '-')}</small></td>
+      <td>${escapeHtml(grade['学年学期'] || '-')}</td>
+      <td>${escapeHtml(grade['教学班'] || grade['教学班号'] || '-')}</td>
+      <td>${escapeHtml(grade['学分'] || '-')}</td>
+      <td class="score">${escapeHtml(grade['总评成绩'] ?? '-')}</td>
+      <td>${escapeHtml(grade['绩点'] ?? '-')}</td>
+      <td class="detail-text">${escapeHtml(details || '暂无明细')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderNotifications() {
+  const items = state.notifications;
+  const pending = items.filter(item => item.status === 'pending');
+  const sent = items.filter(item => item.status === 'sent');
+  document.getElementById('notification-pending').textContent = pending.length;
+  document.getElementById('notification-retrying').textContent = pending.filter(item => item.attempts > 0).length;
+  document.getElementById('notification-sent').textContent = sent.length;
+  const container = document.getElementById('notification-list');
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty-state">暂无通知记录</div>';
+    return;
+  }
+  container.innerHTML = items.map(item => {
+    const isSent = item.status === 'sent';
+    const meta = item.meta || {};
+    const detail = [meta.course, meta.semester, meta.change === 'new' ? '新成绩' : meta.change === 'updated' ? '成绩更新' : meta.change === 'removed' ? '成绩移除' : ''].filter(Boolean).join(' · ');
+    return `<div class="notification-item ${isSent ? 'is-sent' : ''}">
+      <span class="notification-marker"></span>
+      <div class="notification-copy"><b>${escapeHtml(item.subject || '成绩通知')}<span class="status-badge ${isSent ? 'sent' : ''}">${isSent ? '已发送' : item.attempts ? '重试中' : '待发送'}</span></b><p>${escapeHtml(detail || '系统通知')}</p>${item.lastError ? `<small>${escapeHtml(item.lastError)}</small>` : ''}</div>
+      <time class="notification-time">${escapeHtml(formatDate(item.sentAt || item.createdAt))}</time>
+    </div>`;
+  }).join('');
+}
+
+function renderLogs() {
+  const container = document.getElementById('log-lines');
+  if (state.logs.length === 0) {
+    container.innerHTML = '<div class="log-empty">暂无日志</div>';
+    return;
+  }
+  container.innerHTML = state.logs.map(line => {
+    const match = line.match(/^\[([^\s]+)\s+([^\]]+)\]\s*(.*)$/);
+    const time = match?.[1] || '';
+    const tag = match?.[2] || 'LOG';
+    const message = match?.[3] || line;
+    const lower = `${tag} ${message}`.toLowerCase();
+    const variant = /fail|fatal|error|异常|失败/.test(lower) ? ' is-error' : /成功|ready|sent|无变化/.test(lower) ? ' is-success' : '';
+    return `<div class="log-line${variant}"><span class="log-time">${escapeHtml(time)}</span><span class="log-tag">${escapeHtml(tag)}</span><span class="log-message">${escapeHtml(message)}</span></div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+  document.getElementById('log-updated').textContent = `更新于 ${new Date().toLocaleTimeString('zh-CN', { hour12: false })}`;
+}
+
+function renderWeighted(data) {
+  const container = document.getElementById('weighted-result');
+  if (!data || (!data.summary?.length && !data.tableGrades?.length)) {
+    container.innerHTML = '<div class="empty-state compact">没有读取到总加权数据</div>';
+    return;
+  }
+  const summary = (data.summary || []).slice(0, 20).map(item => `<span>${escapeHtml(item)}</span>`).join('');
+  const rows = (data.tableGrades || []).slice(0, 200).map((row, rowIndex) => `<tr>${row.map(cell => rowIndex === 0
+    ? `<th>${escapeHtml(cell)}</th>` : `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('');
+  container.innerHTML = `${summary ? `<div class="weighted-summary">${summary}</div>` : ''}${rows ? `<div class="weighted-table"><table class="data-table"><tbody>${rows}</tbody></table></div>` : ''}`;
+}
+
+async function loadStatus(showError = false) {
+  try {
+    state.status = await api('/api/status');
+    renderStatus();
+  } catch (error) {
+    setConnectionLost();
+    if (showError) showToast('无法连接控制台', error.message, true);
+  }
+}
+
+async function loadGrades() {
+  try {
+    state.currentGrades = await api('/api/grades');
+    if (state.gradeMode === 'current') {
+      state.grades = state.currentGrades;
+      updateSemesterOptions();
+      renderGrades();
+      renderRecentGrades();
+    }
+  } catch {}
+}
+
+async function loadSemesters(showError = false) {
+  try {
+    state.semesters = await api('/api/semesters');
+    state.semestersLoaded = true;
+    state.semestersUpdatedAt = Date.now();
+    state.showOlderSemesters = false;
+    renderSemesterQueryOptions();
+    renderStatus();
+  } catch (error) {
+    if (showError) showToast('学期列表读取失败', error.message, true);
+  }
+}
+
+function renderSemesterQueryOptions(preferredId = '') {
+  const select = document.getElementById('semester-query-select');
+  const toggle = document.getElementById('toggle-older-semesters');
+  const olderCount = Math.max(0, state.semesters.length - DEFAULT_SEMESTER_LIMIT);
+  const visibleSemesters = state.showOlderSemesters
+    ? state.semesters
+    : state.semesters.slice(0, DEFAULT_SEMESTER_LIMIT);
+  select.innerHTML = visibleSemesters.length > 0
+    ? visibleSemesters.map(semester => `<option value="${escapeHtml(semester.id)}">${escapeHtml(semester.label)}</option>`).join('')
+    : '<option value="">没有读取到可用学期</option>';
+  if (preferredId && visibleSemesters.some(semester => semester.id === preferredId)) select.value = preferredId;
+  toggle.hidden = olderCount === 0;
+  toggle.textContent = state.showOlderSemesters ? '收起更早学期' : `显示更早学期（${olderCount}）`;
+  toggle.setAttribute('aria-expanded', String(state.showOlderSemesters));
+}
+
+function toggleOlderSemesters() {
+  const selectedId = document.getElementById('semester-query-select').value;
+  state.showOlderSemesters = !state.showOlderSemesters;
+  renderSemesterQueryOptions(selectedId);
+}
+
+function showCurrentGrades() {
+  state.gradeMode = 'current';
+  state.grades = state.currentGrades;
+  document.getElementById('grade-source-label').textContent = '监控成绩快照';
+  document.getElementById('show-current-grades').hidden = true;
+  updateSemesterOptions();
+  renderGrades();
+  renderRecentGrades();
+}
+
+async function querySemesterGrades() {
+  const select = document.getElementById('semester-query-select');
+  const semesterId = select.value;
+  if (!semesterId) {
+    showToast('请选择学期', '没有可查询的学期编号。', true);
+    return;
+  }
+  const button = document.getElementById('query-semester');
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = '正在查询…';
+  try {
+    const data = await api('/api/actions/semester-grades', {
+      method: 'POST',
+      body: { semesterId },
+    });
+    const semester = state.semesters.find(item => item.id === semesterId);
+    const label = semester?.label || `学期 ${semesterId}`;
+    state.gradeMode = 'history';
+    state.grades = (data.grades || []).map(grade => grade['学年学期']
+      ? grade : { ...grade, '学年学期': label });
+    document.getElementById('grade-source-label').textContent = `历史学期：${label}`;
+    document.getElementById('show-current-grades').hidden = false;
+    updateSemesterOptions();
+    renderGrades();
+    showToast('历史成绩已读取', `${label} 共 ${state.grades.length} 门课程。`);
+  } catch (error) {
+    showToast('历史学期查询失败', error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+    renderStatus();
+  }
+}
+
+async function loadNotifications() {
+  try {
+    state.notifications = await api('/api/notifications');
+    renderNotifications();
+  } catch {}
+}
+
+async function loadLogs() {
+  try {
+    state.logs = await api('/api/logs?limit=200');
+    renderLogs();
+  } catch {}
+}
+
+async function loadSettings() {
+  try {
+    const settings = await api('/api/settings');
+    const form = document.getElementById('settings-form');
+    state.supportedSettings = new Set(Object.keys(settings.values || {}));
+    for (const [key, value] of Object.entries(settings.values)) {
+      const field = form.elements.namedItem(key);
+      if (!field) continue;
+      if (field.type === 'checkbox') field.checked = String(value).toLowerCase() === 'true';
+      else field.value = value;
+    }
+    for (const [key, configured] of Object.entries(settings.configured)) {
+      const badge = document.getElementById(`configured-${key}`);
+      if (badge) {
+        badge.textContent = configured ? '已配置' : '未配置';
+        badge.classList.toggle('is-missing', !configured);
+      }
+      const field = form.elements.namedItem(key);
+      if (field?.type === 'password') field.placeholder = configured
+        ? '已配置，留空不修改'
+        : key === 'EAMS_PASSWORD' ? '首次使用请输入密码' : '未配置，填写后保存';
+    }
+    state.settingsConfigured = settings.configured || {};
+    const visionModelField = form.elements.namedItem('VISION_MODEL');
+    if (visionModelField) visionModelField.disabled = !state.supportedSettings.has('VISION_MODEL');
+    state.setup = settings.setup || state.setup;
+    renderSetupGuide(state.setup);
+    state.settingsLoaded = true;
+  } catch (error) {
+    showToast('设置读取失败', error.message, true);
+  }
+}
+
+function collectSettings(form) {
+  const settings = {};
+  for (const field of form.elements) {
+    if (!field.name || field.disabled) continue;
+    settings[field.name] = field.type === 'checkbox' ? String(field.checked) : field.value;
+  }
+  return settings;
+}
+
+function validateSettingsForm(form) {
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    throw new Error('请检查超出允许范围或格式不正确的配置项。');
+  }
+  const username = form.elements.namedItem('EAMS_USERNAME');
+  if (!username.value.trim()) {
+    username.focus();
+    throw new Error('请填写教务系统学号。');
+  }
+  const password = form.elements.namedItem('EAMS_PASSWORD');
+  if (!password.value && !state.settingsConfigured.EAMS_PASSWORD) {
+    password.focus();
+    throw new Error('首次使用必须填写教务系统密码。');
+  }
+}
+
+async function exportSettings() {
+  if (!state.settingsLoaded) await loadSettings();
+  const form = document.getElementById('settings-form');
+  const settings = collectSettings(form);
+  for (const key of SECRET_SETTING_NAMES) delete settings[key];
+  const payload = {
+    format: SETTINGS_EXPORT_FORMAT,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    secretsExcluded: [...SECRET_SETTING_NAMES],
+    settings,
+  };
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `tju-auto-grade-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+  showToast('配置已导出', '密码、授权码和 API Key 均未包含，请在新设备上重新填写。');
+}
+
+async function openSettingsImport() {
+  if (!state.settingsLoaded) await loadSettings();
+  document.getElementById('settings-import-file').click();
+}
+
+async function importSettings(event) {
+  const input = event.currentTarget;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    if (file.size > 100 * 1024) throw new Error('配置文件不能超过 100 KB');
+    const payload = JSON.parse(await file.text());
+    if (payload?.format !== SETTINGS_EXPORT_FORMAT || payload.version !== 1 || !payload.settings || Array.isArray(payload.settings)) {
+      throw new Error('不是受支持的 TJU Auto Grade 配置文件');
+    }
+    const form = document.getElementById('settings-form');
+    let imported = 0;
+    for (const [key, value] of Object.entries(payload.settings)) {
+      if (SECRET_SETTING_NAMES.has(key)) continue;
+      const field = form.elements.namedItem(key);
+      if (!field || typeof value === 'object') continue;
+      if (field.type === 'checkbox') field.checked = String(value).toLowerCase() === 'true';
+      else field.value = String(value ?? '');
+      imported++;
+    }
+    showToast('配置已导入', `已载入 ${imported} 项非敏感配置；检查后请点击保存。`);
+  } catch (error) {
+    showToast('配置导入失败', error.message, true);
+  } finally {
+    input.value = '';
+  }
+}
+
+function setConnectionLost() {
+  for (const id of ['sidebar-status-dot', 'topbar-status-dot']) setStatusDot(document.getElementById(id), 'error');
+  document.getElementById('sidebar-status-text').textContent = '控制台已断开';
+  document.getElementById('topbar-status-text').textContent = '连接已断开';
+  document.getElementById('overview-heading').textContent = '无法连接本机服务';
+  document.getElementById('hero-description').textContent = '控制台服务可能已退出，请重新运行启动脚本。';
+}
+
+async function refreshAll() {
+  if (state.polling) return;
+  state.polling = true;
+  await Promise.all([loadStatus(), loadGrades(), loadNotifications(), state.activeView === 'logs' ? loadLogs() : Promise.resolve()]);
+  if (state.status?.phase === 'running' && (!state.semestersLoaded
+    || Date.now() - state.semestersUpdatedAt >= SEMESTER_REFRESH_INTERVAL)) await loadSemesters();
+  state.polling = false;
+}
+
+const actionConfig = {
+  check: { path: '/api/actions/check', pending: '正在查询…', done: '查分完成', detail: '成绩快照和状态已经刷新。' },
+  start: { path: '/api/actions/start', pending: '正在启动…', done: '监控正在启动', detail: '如果需要验证码，请查看弹出的 EAMS 浏览器。' },
+  stop: { path: '/api/actions/stop', pending: '正在停止…', done: '监控已停止', detail: '控制台仍保持在线，可随时重新启动。' },
+  restart: { path: '/api/actions/restart', pending: '正在重启…', done: '监控正在重启', detail: '浏览器和定时任务正在重新初始化。' },
+  'retry-notifications': { path: '/api/actions/retry-notifications', pending: '正在重试…', done: '通知队列已处理', detail: '发送结果已更新。' },
+  'test-email': { path: '/api/actions/test-email', pending: '正在发送…', done: '测试邮件已发送', detail: '请检查通知接收邮箱。' },
+  weighted: { path: '/api/actions/weighted', pending: '正在查询…', done: '总加权查询完成', detail: '结果已显示在成绩中心。' },
+};
+
+async function runAction(action, button) {
+  const config = actionConfig[action];
+  if (!config) return;
+  const originalText = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = config.pending;
+  }
+  try {
+    const data = await api(config.path, { method: 'POST' });
+    if (action === 'weighted') {
+      renderWeighted(data);
+      switchView('grades');
+    }
+    showToast(config.done, config.detail);
+    await refreshAll();
+  } catch (error) {
+    showToast('操作未完成', error.message, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+    renderStatus();
+  }
+}
+
+async function saveSettings(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector('button[type="submit"]');
+  try {
+    validateSettingsForm(form);
+  } catch (error) {
+    showToast('配置尚未完成', error.message, true);
+    return;
+  }
+  const settings = collectSettings(form);
+  submit.disabled = true;
+  submit.textContent = '正在保存…';
+  try {
+    const result = await api('/api/settings', { method: 'POST', body: { settings } });
+    form.querySelectorAll('input[type="password"]').forEach(input => { input.value = ''; });
+    state.settingsLoaded = false;
+    await loadSettings();
+    await refreshAll();
+    showToast('设置已保存', result.setup?.complete ? '监控正在使用新配置启动。' : '请继续补全必填配置。');
+  } catch (error) {
+    showToast('保存失败', error.message, true);
+  } finally {
+    submit.disabled = false;
+    submit.textContent = '保存并启动监控';
+  }
+}
+
+function bindEvents() {
+  document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => switchView(button.dataset.view)));
+  document.querySelectorAll('[data-go-view]').forEach(button => button.addEventListener('click', () => switchView(button.dataset.goView)));
+  document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => runAction(button.dataset.action, button)));
+  document.getElementById('menu-button').addEventListener('click', openMobileMenu);
+  document.getElementById('mobile-backdrop').addEventListener('click', closeMobileMenu);
+  document.getElementById('grade-search').addEventListener('input', renderGrades);
+  document.getElementById('semester-filter').addEventListener('change', renderGrades);
+  document.getElementById('toggle-older-semesters').addEventListener('click', toggleOlderSemesters);
+  document.getElementById('query-semester').addEventListener('click', querySemesterGrades);
+  document.getElementById('show-current-grades').addEventListener('click', showCurrentGrades);
+  document.getElementById('refresh-logs').addEventListener('click', loadLogs);
+  document.getElementById('settings-form').addEventListener('submit', saveSettings);
+  document.getElementById('export-settings').addEventListener('click', exportSettings);
+  document.getElementById('import-settings').addEventListener('click', openSettingsImport);
+  document.getElementById('settings-import-file').addEventListener('change', importSettings);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMobileMenu(); });
+}
+
+async function boot() {
+  bindEvents();
+  await loadStatus(true);
+  await Promise.all([loadGrades(), loadNotifications()]);
+  if (state.status?.setup && !state.status.setup.complete) {
+    await loadSettings();
+    switchView('settings');
+    showToast('欢迎使用', '请先完成教务登录配置，保存后监控会自动启动。');
+  }
+  if (state.status?.phase === 'running') await loadSemesters();
+  setInterval(refreshAll, 5000);
+}
+
+boot();
+}
+
+function startFileLauncher() {
+  const target = 'http://127.0.0.1:3765/';
+  document.body.innerHTML = `
+    <main class="file-launcher">
+      <section class="launcher-card" aria-labelledby="launcher-title">
+        <div class="launcher-brand"><span>T</span>TJU Auto Grade</div>
+        <div class="launcher-spinner" aria-hidden="true"></div>
+        <p class="launcher-kicker">本机控制台</p>
+        <h1 id="launcher-title">正在启动查分服务</h1>
+        <p id="launcher-status">正在连接本机后台，请稍候…</p>
+        <button class="button button-primary" id="launcher-retry" type="button">启动或重试</button>
+        <small>首次使用时，Windows 可能询问是否打开 TJU Auto Grade，请选择允许。</small>
+      </section>
+    </main>`;
+
+  const status = document.getElementById('launcher-status');
+  const retry = document.getElementById('launcher-retry');
+  let launching = false;
+
+  async function isReady() {
+    try {
+      const response = await fetch(`${target}launcher-ready`, { cache: 'no-store' });
+      if (response.ok) return true;
+    } catch {}
+    try {
+      await fetch(target, { cache: 'no-store', mode: 'no-cors' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function invokeProtocol() {
+    location.href = `tju-auto-grade://start?time=${Date.now()}`;
+  }
+
+  async function launch() {
+    if (launching) return;
+    launching = true;
+    retry.disabled = true;
+    if (await isReady()) {
+      location.replace(target);
+      return;
+    }
+
+    status.textContent = '正在唤起本机服务…';
+    invokeProtocol();
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (await isReady()) {
+        status.textContent = '启动成功，正在进入控制台…';
+        location.replace(target);
+        return;
+      }
+    }
+
+    status.textContent = '尚未连接成功。请先运行“安装HTML启动支持.bat”，然后点击重试。';
+    retry.disabled = false;
+    launching = false;
+  }
+
+  retry.addEventListener('click', launch);
+  launch();
+}
+
+if (location.protocol === 'file:') startFileLauncher();
+else startDashboardClient();
+
+</script>
+</body>
+</html>
