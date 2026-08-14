@@ -1,5 +1,5 @@
 @echo off
 chcp 65001 >nul
-cd /d "D:\project\tju-auto-grade"
+cd /d "%~dp0"
 node watchdog.js
 pause
