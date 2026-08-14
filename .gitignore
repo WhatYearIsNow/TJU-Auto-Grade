@@ -6,6 +6,8 @@ eams_monitor.log
 *.png
 .captcha_tmp.png
 .eams_pid
+.eams_heartbeat
+*.tmp
 
 # Node
 node_modules/

@@ -3,10 +3,17 @@
   "version": "1.0.0",
   "description": "天津大学自动查分系统 — 常驻监控成绩变化，邮件通知",
   "main": "eams_grade_checker.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node eams_grade_checker.js"
+    "start": "node eams_grade_checker.js",
+    "watchdog": "node watchdog.js",
+    "test": "node --test",
+    "check": "node --check eams_grade_checker.js && node --check vision.js && node --check mailer.js && node --check watchdog.js && node --check test_email.js"
   },
   "dependencies": {
+    "nodemailer": "^9.0.3",
     "playwright": "^1.59.1"
   }
 }
