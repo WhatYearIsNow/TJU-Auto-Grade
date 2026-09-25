@@ -1,8 +1,6 @@
 # 天津大学自动查分系统
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
-基于 Node.js 的 TJU EAMS 成绩监控工具。程序通过 HTTP 直连或 Playwright 浏览器登录教务系统，定时抓取成绩；发现成绩变化后通过 QQ 邮箱（SMTP）发送通知，也可配置 NapCat QQ 作为辅助通知通道。
+基于 Node.js 的 TJU EAMS 成绩监控工具。程序通过 HTTP 直连教务系统（默认模式），定时抓取成绩；发现变化后通过 QQ 邮箱（SMTP）发送通知，也可配置 NapCat QQ 作为辅助通道。
 
 正式入口是本机 Web 控制台 `bin/dashboard.js`，默认地址为 `http://127.0.0.1:3765`。
 
@@ -25,10 +23,10 @@
 
 ## 环境要求
 
-- Node.js 22 或更高版本（当前环境 Node 20.19.2 也可运行）
+- Node.js 22 或更高版本（Node 20 也可运行）
 - 可访问天津大学 EAMS (`classes.tju.edu.cn`) 与统一认证系统 (`sso.tju.edu.cn`) 的网络
 - QQ 邮箱 SMTP/IMAP 服务（需要邮件通知或邮件指令时）
-- Playwright Chromium（使用 `EAMS_TRANSPORT=browser` 时）
+- Playwright Chromium（仅在 `EAMS_TRANSPORT=browser` 时需要）
 
 ## 快速开始
 
@@ -55,6 +53,10 @@ QQ_SMTP_CODE=你的QQ邮箱授权码
 NOTIFY_EMAIL=接收通知的邮箱
 ```
 
+## 传输模式
+
+默认使用 `EAMS_TRANSPORT=http`（纯 Node.js fetch 直连，不启动浏览器，常驻约 60MB）。如需浏览器模式，改为 `EAMS_TRANSPORT=browser`，此时需要安装 Playwright Chromium。
+
 ## 配置项
 
 | 变量 | 默认值 | 说明 |
@@ -71,8 +73,8 @@ NOTIFY_EMAIL=接收通知的邮箱
 | `CAPTCHA_PROVIDER` | `tesseract` | 验证码识别方式：`tesseract`（本地 WASM）或 `dashscope`（千问） |
 | `CHECK_INTERVAL_MINUTES` | `5` | 成绩检查间隔（1-1440 分钟） |
 | `EAMS_TRANSPORT` | `http` | 传输层：`http`（纯 Node fetch）或 `browser`（Playwright） |
-| `BROWSER_CHANNEL` | `msedge` | Playwright 浏览器通道 |
-| `HEADLESS` | `false` | 无头模式 |
+| `BROWSER_CHANNEL` | `msedge` | Playwright 浏览器通道（仅 browser 模式） |
+| `HEADLESS` | `false` | 无头模式（仅 browser 模式） |
 | `DASHBOARD_PORT` | `3765` | 控制台端口（只监听 127.0.0.1） |
 | `DASHBOARD_AUTO_OPEN` | `true` | 启动后自动打开浏览器 |
 | `IMAP_ENABLED` | `true` | 启用邮件指令轮询 |
@@ -151,9 +153,7 @@ npm run watchdog
 
 看门狗检查 PID 和心跳文件。主进程退出后尝试后台重启；心跳超时只报警不强制结束。
 
-```env
-WATCHDOG_AUTO_RESTART=false
-```
+如需关闭自动重启，设置 `WATCHDOG_AUTO_RESTART=false`。
 
 ## 常用命令
 
@@ -168,7 +168,6 @@ npm run check         # 检查全部 JavaScript 文件
 npm test              # 运行单元测试
 npm run doctor        # 配置自检
 npm run validate      # 完整代码检查与测试
-npm run verify        # 验证本机运行环境
 npm run test:email    # 发送测试邮件
 ```
 
@@ -210,7 +209,7 @@ npm run test:email    # 发送测试邮件
 
 ## 常见问题
 
-1. 登录后反复跳回统一认证：关闭其他占用 `.eams_profile` 的浏览器，确认只启动了一个实例。
+1. 浏览器模式登录后反复跳回统一认证：关闭其他占用 `.eams_profile` 的浏览器，确认只启动了一个实例。
 2. 收不到邮件：在 QQ 邮箱设置中开启 SMTP，确认填写的是授权码，运行 `npm run test:email`。
 3. 邮件回复无响应：检查发件邮箱是否与 `COMMAND_EMAIL` 一致，查看 `data/eams_monitor.log`。
 4. Edge 无法启动：确认 Edge 已安装；或安装 Playwright Chromium 后设置 `BROWSER_CHANNEL=chromium`。
@@ -218,7 +217,7 @@ npm run test:email    # 发送测试邮件
 
 ## 隐私说明
 
-成绩快照、通知队列、浏览器会话、日志和凭据均保存在本机。通知队列包含待发送邮件正文，因此也被排除在 Git 之外。
+成绩快照、通知队列、浏览器会话（如使用 browser 模式）、日志和凭据均保存在本机。通知队列包含待发送邮件正文，因此也被排除在 Git 之外。
 
 ## 贡献与许可证
 
