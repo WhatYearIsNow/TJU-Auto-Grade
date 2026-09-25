@@ -1,12 +1,55 @@
 {
   "name": "tju-auto-grade",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "description": "天津大学自动查分系统 — 常驻监控成绩变化，邮件通知",
-  "main": "eams_grade_checker.js",
+  "private": true,
+  "license": "MIT",
+  "author": "WhatYearIsNow",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WhatYearIsNow/tju-auto-grade.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WhatYearIsNow/tju-auto-grade/issues"
+  },
+  "homepage": "https://github.com/WhatYearIsNow/tju-auto-grade#readme",
+  "keywords": [
+    "tju",
+    "eams",
+    "grade-monitor",
+    "playwright",
+    "nodejs"
+  ],
+  "main": "bin/dashboard.js",
   "scripts": {
-    "start": "node eams_grade_checker.js"
+    "build": "node scripts/build_dashboard_html.js",
+    "build:check": "node scripts/build_dashboard_html.js --check",
+    "prestart": "npm run build",
+    "start": "node bin/dashboard.js",
+    "predashboard": "npm run build",
+    "dashboard": "node bin/dashboard.js",
+    "monitor": "node bin/monitor.js",
+    "watchdog": "node bin/watchdog.js",
+    "pretest": "npm run build",
+    "test": "node --test test/unit/*.test.js",
+    "test:ui": "python scripts/run_ui_tests.py",
+    "check": "node scripts/check.js",
+    "validate": "npm run check && npm run build:check && npm test",
+    "verify": "node bin/monitor.js --verify",
+    "tessdata": "node scripts/fetch_tessdata.js",
+    "test:captcha": "node scripts/test_captcha_ocr.js",
+    "test:email": "node scripts/test_email.js",
+    "doctor": "node scripts/doctor.js"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
-    "playwright": "^1.59.1"
+    "cheerio": "^1.0.0",
+    "jpeg-js": "^0.4.4",
+    "nodemailer": "^9.0.5",
+    "playwright": "^1.59.1",
+    "pngjs": "^7.0.0",
+    "tesseract.js": "^5.1.1"
   }
 }
